@@ -1,7 +1,7 @@
 
 <p align="center">
 
-<img src="https://github.com/pa-nic/homebridge-digitalSTROM/raw/master/images/logo.png" width="320">
+<img src="https://github.com/pa-nic/homebridge-digitalSTROM/blob/main/images/logo.png" width="320">
 
 </p>
 
@@ -49,7 +49,7 @@ Enter the `IP` of digitalSTROM server and your `applicationToken`
 
 <p align="center">
 
-<img src="https://github.com/pa-nic/homebridge-digitalSTROM/raw/master/images/settings.png" width="480">
+<img src="https://github.com/pa-nic/homebridge-digitalSTROM/blob/main/images/settings.png" width="480">
 
 </p>
 
