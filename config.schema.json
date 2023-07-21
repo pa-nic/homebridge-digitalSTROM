@@ -1,0 +1,37 @@
+{
+  "pluginAlias": "DigitalStromPlugin",
+  "pluginType": "platform",
+  "headerDisplay": "Homebridge plugin for digitalSTROM.",
+  "footerDisplay": "If you have any suggestions, please open an issue on [GitHub](https://github.com/pa-nic/digitalSTROM/issues).",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "digitalSTROM",
+        "description": "You shouldn't need to change this.",
+        "required": true
+      },
+      "options": {
+        "title": "Options",
+        "type": "object",
+        "properties": {
+          "dssip": {
+            "title": "dSS IP",
+            "type": "string",
+            "default": "192.168.10.20",
+            "required": true
+          },
+          "token": {
+            "title": "dSS AppToken",
+            "type": "string",
+            "default": "[Token]",
+            "required": true
+          }
+        }
+      }
+    }
+  }
+}
+
