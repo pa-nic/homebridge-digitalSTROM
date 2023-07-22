@@ -80,6 +80,9 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
         // Run the method to discover / register your devices as accessories
         await this.discoverDevices();
 
+        // Get the current device statuses for the first time
+        await this.updateAccessories();
+
         // WebSocket listener
         this.webSocketClient.addMessageListener('STATUS_CHANGE', (msg: string) => { 
   

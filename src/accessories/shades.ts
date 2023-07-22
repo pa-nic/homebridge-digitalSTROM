@@ -65,46 +65,21 @@ export class ShadeAccessory extends dssAccessory {
    * throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
    */
   async getCurrentPosition(): Promise<CharacteristicValue> {
-    const status = await this.platform.dsAPI.getDeviceStatus(this.accessory.context.device.id);
 
-    // Sometimes output status is not availabe (i.e. during DSS maintenance tasks)
-    // Use cached status instead to prevent crash
-    if (status.attributes.functionBlocks[0].outputs) {
-      const deviceOutputShadePosition = status.attributes.functionBlocks[0].outputs.find((o) => o.id === 'shadePositionOutside');
-
-      this.positionState = deviceOutputShadePosition.status;
-
-      if (this.positionState === 'moving') {
-        this.currentPosition = Math.round(deviceOutputShadePosition.initialValue);
-      } else {
-        this.currentPosition = Math.round(deviceOutputShadePosition.value);
-      }       
-    }
-
-    this.platform.log.debug(`${this.accessory.context.device.attributes.name} current position is ${this.currentPosition}`);
+    /* 
+     * Requesting the needed values from dSS slows down Homebridge.
+     * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
+     */
 
     return this.currentPosition;
   }
 
   async getPositionState(): Promise<CharacteristicValue> {
-    const status = await this.platform.dsAPI.getDeviceStatus(this.accessory.context.device.id);
-
-    // Sometimes output status is not availabe (i.e. during DSS maintenance tasks)
-    // Use cached status instead to prevent crash
-    if (status.attributes.functionBlocks[0].outputs) {
-      const deviceOutputShadePosition = status.attributes.functionBlocks[0].outputs.find((o) => o.id === 'shadePositionOutside');
-
-      this.positionState = deviceOutputShadePosition.status;
-
-      if (this.positionState === 'moving') {
-        this.currentPosition = Math.round(deviceOutputShadePosition.initialValue);
-      } else {
-        this.currentPosition = Math.round(deviceOutputShadePosition.value);
-      }   
-
-      this.targetPosition = Math.round(deviceOutputShadePosition.targetValue);
-      
-    }
+  
+    /* 
+     * Requesting the needed values from dSS slows down Homebridge.
+     * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
+     */
 
     if (this.positionState === 'moving') {
       if (this.targetPosition > this.currentPosition) {
@@ -118,16 +93,11 @@ export class ShadeAccessory extends dssAccessory {
   }
 
   async getTargetPosition(): Promise<CharacteristicValue> {
-    const status = await this.platform.dsAPI.getDeviceStatus(this.accessory.context.device.id);
 
-    // Sometimes output status is not availabe (i.e. during DSS maintenance tasks)
-    // Use cached status instead to prevent crash
-    if (status.attributes.functionBlocks[0].outputs) {
-      const deviceOutputShadePosition = status.attributes.functionBlocks[0].outputs.find((o) => o.id === 'shadePositionOutside');
-      this.targetPosition = Math.round(deviceOutputShadePosition.targetValue);
-    }
-
-    this.platform.log.debug(`${this.accessory.context.device.attributes.name} is ${this.targetPosition}% open`);
+    /* 
+     * Requesting the needed values from dSS slows down Homebridge.
+     * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
+     */
 
     return this.targetPosition;
   }
@@ -137,7 +107,7 @@ export class ShadeAccessory extends dssAccessory {
 
     const deviceStatus = apartmentStatus.included.dsDevices.find((d) => d.id === this.accessory.context.device.id);
 
-    // Sometimes output status is not availabe (i.e. during DSS maintenance tasks)
+    // Sometimes output status is not availabe (i.e. during dSS maintenance tasks)
     // Only trigger update if new status is available
     if (deviceStatus.attributes.functionBlocks[0].outputs) {
       const deviceOutputShadePosition = deviceStatus.attributes.functionBlocks[0].outputs.find((o) => o.id === 'shadePositionOutside');

@@ -80,35 +80,21 @@ export class LightAccessory extends dssAccessory {
    * throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
    */
   async getOn(): Promise<CharacteristicValue> {
-    const status = await this.platform.dsAPI.getDeviceStatus(this.accessory.context.device.id);
+  
+    /* 
+     * Requesting the needed values from dSS slows down Homebridge.
+     * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
+     */
 
-    // Sometimes output status is not availabe (i.e. during DSS maintenance tasks)
-    // Use cached status instead to prevent crash
-    if (status.attributes.functionBlocks[0].outputs) {
-      const deviceOutputBrightness = status.attributes.functionBlocks[0].outputs.find((o) => o.id === 'brightness');
-      this.targetValue = Math.round(deviceOutputBrightness.targetValue);
-    }
-
-    if (this.targetValue > 0) {
-      this.platform.log.debug(`${this.accessory.context.device.attributes.name} -> is On (value ${this.targetValue})`);
-      return true;
-    } else {
-      this.platform.log.debug(`${this.accessory.context.device.attributes.name} -> is Off (value ${this.targetValue})`);
-      return false;
-    }
+    return (this.targetValue > 0);
   }
 
   async getBrightness(): Promise<CharacteristicValue> {
-    const status = await this.platform.dsAPI.getDeviceStatus(this.accessory.context.device.id);
     
-    // Sometimes output status is not availabe (i.e. during DSS maintenance tasks)
-    // Use cached status instead to prevent crash
-    if (status.attributes.functionBlocks[0].outputs) {
-      const deviceOutputBrightness = status.attributes.functionBlocks[0].outputs.find((o) => o.id === 'brightness');
-      this.brightness = Math.round(deviceOutputBrightness.value);
-    }
-    
-    this.platform.log.debug(`Update brightness of ${this.accessory.context.device.attributes.name} to ${this.brightness}`);
+    /* 
+     * Requesting the needed values from dSS slows down Homebridge.
+     * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
+     */
 
     return this.brightness;
   }
