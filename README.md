@@ -45,7 +45,7 @@ There you need check the checkbox next to your just registered token and apply t
 
 Install the plugin and open its settings page. 
 
-Enter the `IP` of digitalSTROM server and your `applicationToken`
+Enter the `IP` of your digitalSTROM server and your `applicationToken`
 
 <p align="center">
 
