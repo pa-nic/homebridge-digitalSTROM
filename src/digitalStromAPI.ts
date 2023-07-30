@@ -66,13 +66,13 @@ export class digitalStromAPI {
     this.axiosInstance.interceptors.request.use(async config => {
 
       if (!config.url?.includes(this.uri.login(this.appToken))) {
-        this.log?.debug('Checking for valid session token');
+        this.log.debug('Checking for valid session token');
         if (!this.session?.hasValidSessionToken()) {
-          this.log?.debug('No valid session token');
+          this.log.debug('No valid session token');
           await this.getSessionToken();
         }
         config.url = (config.url!.indexOf('?') < 0 ? config.url + '?' : config.url + '&') + 'token=' + this.session?.sessionToken;
-        this.log?.debug(`New uri [${config.url}]`);
+        this.log.debug(`New uri [${config.url}]`);
       }
 
       return config;
@@ -85,7 +85,7 @@ export class digitalStromAPI {
    * @returns apartment structure as JSON object
    */
   public async getApartment(): Promise<any> {
-    this.log?.debug('Getting apartment');
+    this.log.debug('Getting apartment');
     const json = await this.newAPIrequest(this.uri.getApartment());
     return json.data;
   }
@@ -95,19 +95,8 @@ export class digitalStromAPI {
    * @returns apartment status as JSON object
    */
   public async getApartmentStatus(): Promise<any> {
-    this.log?.debug('Getting apartment status');
+    this.log.debug('Getting apartment status');
     const json = await this.newAPIrequest(this.uri.getApartmentStatus());
-    return json.data;
-  }
-
-  /**
-   * Get device status
-   * @param dsuid id of device
-   * @returns device status as JSON object
-   */
-  public async getDeviceStatus(dsuid: string): Promise<any> {
-    this.log?.debug(`Getting status of device ${dsuid}`);
-    const json = await this.newAPIrequest(this.uri.getDeviceStatus(dsuid));
     return json.data;
   }
 
@@ -117,7 +106,7 @@ export class digitalStromAPI {
    * @returns JSON object
    */
   public async turnOnDevice(dsuid: string): Promise<any> {
-    this.log?.debug(`TurnOn device: ${dsuid}`);
+    this.log.debug(`TurnOn device: ${dsuid}`);
 
     const data = await this.request(this.uri.turnOnDevice(dsuid));
     return data.result;
@@ -129,7 +118,7 @@ export class digitalStromAPI {
    * @returns JSON object
    */
   public async turnOffDevice(dsuid: string): Promise<any> {
-    this.log?.debug(`TurnOff device: ${dsuid}`);
+    this.log.debug(`TurnOff device: ${dsuid}`);
 
     const data = await this.request(this.uri.turnOffDevice(dsuid));
     return data.result;
@@ -142,7 +131,7 @@ export class digitalStromAPI {
    * @returns 
    */
   public async setOutputChannelValue(dsuid: string, channels: string): Promise<any> {
-    this.log?.debug(`Set output ${channels} for ${dsuid}`);
+    this.log.debug(`Set output ${channels} for ${dsuid}`);
 
     const data = await this.request(this.uri.setOutputChannelValue(dsuid, channels));
     return data.result;
@@ -153,22 +142,22 @@ export class digitalStromAPI {
    * @returns session token as string
    */
   public async getSessionToken(): Promise<Session | undefined> {
-    this.log?.debug('Requesting new session token');
+    this.log.debug('Requesting new session token');
 
     const json = await this.request(this.uri.login(this.appToken));
     this.session!.resetSessionToken(json.result.token);
-    this.log?.debug(`New session token: ${json.result.token}`);
+    this.log.debug(`New session token: ${json.result.token}`);
     return this.session;
   }
 
   /**
-   * Old dss API request
+   * Old dSS API request
    * @param uri 
    * @returns JSON object
    */
   private async request(uri: string): Promise<any> {
 
-    this.log?.debug(`Request [GET ${uri}]`);
+    this.log.debug(`Request [GET ${uri}]`);
 
     try {
       const response = await this.axiosInstance({
@@ -176,40 +165,41 @@ export class digitalStromAPI {
         timeout: 10000,
       });
 
-      this.log?.debug(`Response [GET ${uri}] - ${JSON.stringify(response.data)}`);
+      this.log.debug(`Response [GET ${uri}] - ${JSON.stringify(response.data)}`);
 
       if (!response.data.ok) {
         if (response.data.message === 'Application authentication failed') {
           if (uri === this.uri.login(this.appToken)) {
-            this.log?.error(`Check your application token. ${response.data.message}`);
-          } else {
-            this.log?.debug('No valid session token');
-            await this.getSessionToken();
+            this.log.error(`Check your application token. ${response.data.message}`);
+          } 
+          
+          // else {
+          //   this.log.debug('No valid session token');
+          //   await this.getSessionToken();
 
-            // retry last request
-            return await this.request(uri.split('\\?token|\\&token', 2)[0]);
+          //   // retry last request
+          //   return await this.request(uri.split('\\?token|\\&token', 2)[0]);
 
-          }
+          // }
         } else {
-          this.log?.error(response.data.message);
+          this.log.error(`ERROR: ${response.data.message}`);
         }
       } else {
         return response.data;
       }
     } catch (error) {
-      this.log?.debug(`Error[GET ${uri}] - ${JSON.stringify(error)}`);
-      this.log?.error(`A request error occurred: ${error.error}`);
+      this.log.error(`A request error occurred: ${error}`);
     }
   }
 
   /**
-   * New dss API request
+   * New dSS API request
    * @param uri 
    * @returns JSON object
    */
   private async newAPIrequest(uri: string): Promise<any> {
 
-    this.log?.debug(`Request [GET ${uri}]`);
+    this.log.debug(`Request [GET ${uri}]`);
 
     try {
       const response = await this.axiosInstance({
@@ -217,16 +207,15 @@ export class digitalStromAPI {
         timeout: 10000,
       });
 
-      this.log?.debug(`Response [GET ${uri}] - ${JSON.stringify(response.data)}`);
+      this.log.debug(`Response [GET ${uri}] - ${JSON.stringify(response.data)}`);
       
       if (response.status !== 200) {
-        this.log?.error(response.data.message);
+        this.log.error(response.data.message);
       } else {
         return response.data;
       }
     } catch (error) {
-      this.log?.debug(`Error[GET ${uri}] - ${JSON.stringify(error)}`);
-      this.log?.error(`A request error occurred: ${error.error}`);
+      this.log.error(`A request error occurred: ${error}`);
     }
   }
 

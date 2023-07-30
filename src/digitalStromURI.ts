@@ -13,21 +13,10 @@ export class digitalStromURI {
   public getApartmentStatus(): string {
     return '/api/v1/apartment/status?includeAll=true';
   }
-  
-  // Get device
-  public getDevices(): string {
-    // return '/api/v1/apartment/dsDevices';
-    return '/api/v1/apartment/submodules';
-  }
 
   /*
    * Device
    */
-
-  // Get status of device
-  public getDeviceStatus(id): string {
-    return `/api/v1/apartment/dsDevices/${id}/status`;
-  }
 
   // Tells device to execute the scene MAX.
   public turnOnDevice(dsuid: string): string {

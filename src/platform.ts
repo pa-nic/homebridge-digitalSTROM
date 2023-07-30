@@ -84,21 +84,21 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
         await this.updateAccessories();
 
         // WebSocket listener
-        this.webSocketClient.addMessageListener('STATUS_CHANGE', (msg: string) => { 
+        this.webSocketClient.addMessageListener('STATUS_LISTENER', (msg: string) => { 
   
           if (msg === '{"type":1,"target":"event","arguments":[{"type":"apartmentStatusChanged"}]}\u001e') {
             this.updateAccessories();
           }
         });
 
-        // Activate websocket notifications on the server
-        this.webSocketClient.sendWebSocketCommand('{"protocol":"json","version":"1"}');
-
       } catch (error) {
         this.log.error(error.message);
         this.log.debug(error);
       }
     });
+
+    // When this event is fired it means the plugin fails to load or Homebridge restarts
+    this.api.on(APIEvent.SHUTDOWN, async () => this.pluginShutdown());
   }
 
   /**
@@ -237,5 +237,15 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
    */
   private get generateUUID(): (BinaryLike) => string {
     return this.api.hap.uuid.generate;
+  }
+
+  /**
+   * Shut down plugin
+   */
+  private pluginShutdown() {
+    if (this.webSocketClient) {
+      this.webSocketClient.removeMessageListener('STATUS_LISTENER');
+      this.webSocketClient.close();
+    }
   }
 }
