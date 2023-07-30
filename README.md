@@ -7,7 +7,7 @@
 
 # Basic Homebridge Platform Plugin for digitalSTROM
 
-This is a (very) basic Homebridge platform plugin for the digitalSTROM smart home system.
+This is a (very) basic [Homebridge](https://homebridge.io) platform plugin for the [digitalSTROM](https://www.digitalstrom.com) smart home system.
 
 Plugin status: *EXPERIMENTAL*
 
@@ -61,7 +61,7 @@ I am still experimenting/learning so expect breaking changes!
 
 The plugin makes use of both, the [old](https://developer.digitalstrom.org/Architecture/dss-json.pdf) and [new](https://developer.digitalstrom.org/api/#overview--apartment-status) digitalSTROM API.
 
-While the old API is mainly used to login and apply changes, the new API is used to get details about the apparment structure, device statuses and listen on a websocket channel for status changes. 
+While the old API is mainly used to login and apply changes, the new API is used to get details about the appartment structure, device statuses and listen on a websocket channel for status changes. 
 
 I'd like to completely switch to the new API at some point. With the limited documentation available I was not yet able to change the authentication/session handling and executing scenarios to the new API.
 
