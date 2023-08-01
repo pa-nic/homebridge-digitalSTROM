@@ -67,12 +67,3 @@ I'd like to completely switch to the new API at some point. With the limited doc
 
 Any help/support is appreciated here!
 
-### ToDo
-
-* Use only new API
-* Support scenes/areas/rooms/zones
-* Support more device features
-* Support more devices
-* Rewrite code (generic apartment structure)
-
-
