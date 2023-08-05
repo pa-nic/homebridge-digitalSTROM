@@ -26,7 +26,7 @@ Scenes and other devices are currently **not** supported.
 
 ### DSS
 
-To grant this Homebridge plugin access to you digitalSTROM environment you first need to register and enable an applicationToken in your digitalSTROM server (dSS).
+To grant this Homebridge plugin access to your digitalSTROM environment you first need to register and enable an applicationToken in your digitalSTROM server (dSS).
  
 https://dss.local:8080/json/system/requestApplicationToken?applicationName=Homebridge
 
@@ -39,7 +39,7 @@ You might need to replace `dss.local` with the IP of your dSS. You can also chan
 
 If you've received an applicationToken like in the example above, access the web interface of your dSS, enable *Advanced View* (at the bottom right corner), open the *System* tab and browse to *Accesss rights*.
 
-There you need check the checkbox next to your just registered token and apply the changes.
+There you need to check the checkbox next to your just registered token and apply the changes.
 
 ### Homebridge
 
