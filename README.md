@@ -9,7 +9,10 @@
 
 This is a (very) basic [Homebridge](https://homebridge.io) platform plugin for the [digitalSTROM](https://www.digitalstrom.com) smart home system.
 
-Plugin status: *EXPERIMENTAL*
+The idea is **not** to expose all the zones, scenes etc. of the digitalSTROM setup but rather be able to control all the devices directly and do most/all of the automation stuff within HomeKit. 
+
+For example, if you've configured a button (SW-) to turn on a group (zone) of lights (GE-) in your living room, you could do the following in HomeKit: Take the lights, put them in your living room and a) combine them to a group or b) create a scene.
+You're now able to control the group of lights or the scene with "Hey Siri, ...".
 
 ## DSS device support
 
@@ -20,7 +23,7 @@ You are currently able to directly control the following functions/devices:
 | Light | Yellow | GE- | Turn on/off, brightness |
 | Shade | Grey | GR- | Shade position (outside) |
 
-Scenes and other devices are currently **not** supported.
+Limitations: There is currently no way to automatically asign devices to floors, rooms, groups in HomeKit. So this has to be done manually within HomeKit.
 
 ## Setup
 
