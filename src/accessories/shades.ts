@@ -45,7 +45,8 @@ export class ShadeAccessory extends dssAccessory {
    * These are sent when the user changes the state of an accessory
    */
   async setTargetPosition(value: CharacteristicValue) {
-    this.platform.dsAPI.setOutputChannelValue(this.accessory.context.device.id, `shadePositionOutside=${value}`);
+    const id = this.accessory.context.device.id;
+    this.platform.dsAPI.setDeviceOutputValue(id, id, 'shadePositionOutside', value);
     this.platform.log.info(`${this.accessory.context.device.attributes.name} target Position -> ${value}`);
   }
 

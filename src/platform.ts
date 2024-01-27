@@ -74,9 +74,6 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
     // to start discovery of new accessories.
     this.api.on(APIEvent.DID_FINISH_LAUNCHING, async () => {
       try {
-        // Request session token
-        await this.dsAPI.getSessionToken();
-
         // Run the method to discover / register your devices as accessories
         await this.discoverDevices();
 
@@ -85,8 +82,12 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
 
         // WebSocket listener
         this.webSocketClient.addMessageListener('STATUS_LISTENER', (msg: string) => { 
+
+          const json = JSON.parse(msg);
+          const status = json.arguments[0].type;
+          this.log.debug(`STATUS_LISTENER: ${status}`);
   
-          if (msg === '{"type":1,"target":"event","arguments":[{"type":"apartmentStatusChanged"}]}\u001e') {
+          if (status === 'apartmentStatusChanged') {
             this.updateAccessories();
           }
         });

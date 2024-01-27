@@ -125,7 +125,7 @@ export default class webSocketClient {
         return;
       }
 
-      this.connection.send(`${command};${payload}`, (err) => {
+      this.connection.send(`${command};${payload}`, (err: any) => {
         if (err) {
           this.log.debug('Sending failed!');
           this.log.error(err!.message);

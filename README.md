@@ -54,16 +54,3 @@ Enter the `IP` of your digitalSTROM server and your `applicationToken`
 </p>
 
 <p align="center" style="margin-top:20px">And that's just about it!</p>
-
-## Technical details
-
-I am still experimenting/learning so expect breaking changes!
-
-The plugin makes use of both, the [old](https://developer.digitalstrom.org/Architecture/dss-json.pdf) and [new](https://developer.digitalstrom.org/api/#overview--apartment-status) digitalSTROM API.
-
-While the old API is mainly used to login and apply changes, the new API is used to get details about the appartment structure, device statuses and listen on a websocket channel for status changes. 
-
-I'd like to completely switch to the new API at some point. With the limited documentation available I was not yet able to change the authentication/session handling and executing scenarios to the new API.
-
-Any help/support is appreciated here!
-

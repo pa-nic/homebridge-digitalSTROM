@@ -1,7 +1,7 @@
 {
   "displayName": "digitalSTROM",
   "name": "homebridge-digitalstrom-plugin",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "author": {
     "name": "Patrick Probst",
     "url": "https://8028.de"

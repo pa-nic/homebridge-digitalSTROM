@@ -60,7 +60,8 @@ export class LightAccessory extends dssAccessory {
   }
 
   async setBrightness(value: CharacteristicValue) {
-    this.platform.dsAPI.setOutputChannelValue(this.accessory.context.device.id, `brightness=${value}`);
+    const id = this.accessory.context.device.id;
+    this.platform.dsAPI.setDeviceOutputValue(id, id, 'brightness', value);
     this.platform.log.info(`${this.accessory.context.device.attributes.name} brightness -> ${value}`);
   }
 

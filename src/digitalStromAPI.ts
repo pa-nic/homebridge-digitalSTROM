@@ -1,51 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Logging } from 'homebridge';
+import { CharacteristicValue, Logging } from 'homebridge';
 import https from 'https';
-import axios, { AxiosInstance } from 'axios';
-import { digitalStromURI } from './digitalStromURI';
+import axios, { AxiosInstance, Method } from 'axios';
 
-class Session {
-  private expiresOn!: number;
-  private _sessionToken: string;
-
-  constructor(){
-    this._sessionToken = '';
-  }
-
-  public get sessionToken(): string {
-    return this._sessionToken;
-  }
-
-  public resetSessionToken(sessionToken: string): void {
-    this._sessionToken = sessionToken;
-    this.setSessionTimeout();
-  }
-
-  public setSessionTimeout(): void {
-    // default dss session timeout is 180s - set to 170s
-    this.expiresOn = Session.getCurrentEpoch() + 170000;
-  }
-
-  public hasSessionToken(): boolean {
-    return !!this._sessionToken;
-  }
-
-  public isSessionTokenExpired(): boolean {
-    return this.expiresOn < Session.getCurrentEpoch();
-  }
-
-  public hasValidSessionToken(): boolean {
-    return this.hasSessionToken() && !this.isSessionTokenExpired();
-  }
-
-  private static getCurrentEpoch(): number {
-    return Math.round((new Date()).getTime()); // in ms
-  }
+interface patchBody {
+  op: string;
+  path: string;
+  value: CharacteristicValue;
 }
 
 export class digitalStromAPI {
-  private session: Session | undefined;
-  private uri: digitalStromURI;
   private axiosInstance: AxiosInstance;
 
   constructor(
@@ -53,31 +17,14 @@ export class digitalStromAPI {
     private appToken: string,
     private log: Logging,
   ) {
-    this.session = new Session();
-    this.uri = new digitalStromURI();
-
     this.axiosInstance = axios.create({
       httpsAgent: new https.Agent({
         rejectUnauthorized: false,
       }),
       baseURL: `https://${dssIP}:8080`,
+      headers: {'Authorization': `Bearer ${this.appToken}`},
+      timeout: 10000,
     });
-
-    this.axiosInstance.interceptors.request.use(async config => {
-
-      if (!config.url?.includes(this.uri.login(this.appToken))) {
-        this.log.debug('Checking for valid session token');
-        if (!this.session?.hasValidSessionToken()) {
-          this.log.debug('No valid session token');
-          await this.getSessionToken();
-        }
-        config.url = (config.url!.indexOf('?') < 0 ? config.url + '?' : config.url + '&') + 'token=' + this.session?.sessionToken;
-        this.log.debug(`New uri [${config.url}]`);
-      }
-
-      return config;
-    });
-
   }
 
   /**
@@ -86,7 +33,9 @@ export class digitalStromAPI {
    */
   public async getApartment(): Promise<any> {
     this.log.debug('Getting apartment');
-    const json = await this.newAPIrequest(this.uri.getApartment());
+    const params: URLSearchParams = new URLSearchParams();
+    params.set('includeAll', 'true');
+    const json = await this.getApiRequest('/api/v1/apartment/', params);
     return json.data;
   }
 
@@ -96,127 +45,114 @@ export class digitalStromAPI {
    */
   public async getApartmentStatus(): Promise<any> {
     this.log.debug('Getting apartment status');
-    const json = await this.newAPIrequest(this.uri.getApartmentStatus());
+    const params: URLSearchParams = new URLSearchParams();
+    params.set('includeAll', 'true');
+    const json = await this.getApiRequest('/api/v1/apartment/status', params);
     return json.data;
   }
 
   /**
-   * Call scene max of device
-   * @param dsuid id of device
-   * @returns JSON object
+   * Invoke standard device scenario turnOn
+   * @param dsuid id of device as string
    */
   public async turnOnDevice(dsuid: string): Promise<any> {
     this.log.debug(`TurnOn device: ${dsuid}`);
-
-    const data = await this.request(this.uri.turnOnDevice(dsuid));
-    return data.result;
+    const emptyBody = JSON.parse('{}');
+    this.postApiRequest(`/api/v1/apartment/scenarios/device-${dsuid}-std.turnOn/invoke`, emptyBody);
   }
 
   /**
-   * Call scene min of device
-   * @param dsuid id of device
-   * @returns JSON object
+   * Invoke standard device scenario turnOff
+   * @param dsuid id of device as string
    */
   public async turnOffDevice(dsuid: string): Promise<any> {
     this.log.debug(`TurnOff device: ${dsuid}`);
-
-    const data = await this.request(this.uri.turnOffDevice(dsuid));
-    return data.result;
+    const emptyBody = JSON.parse('{}');
+    this.postApiRequest(`/api/v1/apartment/scenarios/device-${dsuid}-std.turnOff/invoke`, emptyBody);
   }
 
   /**
-   * Set the value of one or more output channels of the device
-   * @param dsuid id of device
-   * @param channels channels to set
-   * @returns 
+   * Setting output value of device
+   * @param dsuid id of device as string
+   * @param functionBlockId as string
+   * @param outputId as string
+   * @param value as CharacteristicValue
    */
-  public async setOutputChannelValue(dsuid: string, channels: string): Promise<any> {
-    this.log.debug(`Set output ${channels} for ${dsuid}`);
-
-    const data = await this.request(this.uri.setOutputChannelValue(dsuid, channels));
-    return data.result;
+  public async setDeviceOutputValue(dsuid: string, functionBlockId: string, outputId: string, value: CharacteristicValue): Promise<any> {
+    this.log.debug(`Set ${outputId} to ${value} for ${dsuid}`);
+    const data: patchBody[] = [
+      {
+        op: 'replace',
+        path: `/functionBlocks/${functionBlockId}/outputs/${outputId}/value`,
+        value: value,
+      },
+    ];
+    this.patchApiRequest(`/api/v1/apartment/dsDevices/${dsuid}/status`, data);
   }
 
   /**
-   * Get session token
-   * @returns session token as string
+   * Generic API get request
+   * @param url path as string
+   * @param params search params as URLSearchParams object
+   * @returns JSON response
    */
-  public async getSessionToken(): Promise<Session | undefined> {
-    this.log.debug('Requesting new session token');
-
-    const json = await this.request(this.uri.login(this.appToken));
-    this.session!.resetSessionToken(json.result.token);
-    this.log.debug(`New session token: ${json.result.token}`);
-    return this.session;
+  private async getApiRequest(url: string, params: URLSearchParams) {
+    const emptyBody = JSON.parse('{}');
+    const response = await this.dssApiRequest('GET', url, emptyBody, params);
+    return response;
   }
 
   /**
-   * Old dSS API request
-   * @param uri 
+   * Generic API post request
+   * @param url path as string
+   * @param data request body as JSON object
+   */
+  private async postApiRequest (url: string, data: JSON) {
+    const params: URLSearchParams = new URLSearchParams();
+    this.dssApiRequest('POST', url, data, params);
+  }
+
+  /**
+   * Generic API patch request
+   * @param url path as string
+   * @param data request body as 
+   */
+  private async patchApiRequest(url: string, data: patchBody[]) {
+    const params: URLSearchParams = new URLSearchParams();
+    this.dssApiRequest('PATCH', url, data, params);
+  }
+
+  /**
+   * dSS API request
+   * @param method request method
+   * @param url path as string
+   * @param data request body as JSON object
+   * @param params search params as URLSearchParams object
    * @returns JSON object
    */
-  private async request(uri: string): Promise<any> {
+  private async dssApiRequest(method: Method, url: string, data: any, params: URLSearchParams): Promise<any> {
 
-    this.log.debug(`Request [GET ${uri}]`);
+    this.log.debug(`GET request ${url}]`);
 
     try {
       const response = await this.axiosInstance({
-        url: uri,
-        timeout: 10000,
+        method: method,
+        url: url,
+        data: data,
+        params: params,
       });
-
-      this.log.debug(`Response [GET ${uri}] - ${JSON.stringify(response.data)}`);
-
-      if (!response.data.ok) {
-        if (response.data.message === 'Application authentication failed') {
-          if (uri === this.uri.login(this.appToken)) {
-            this.log.error(`Check your application token. ${response.data.message}`);
-          } 
-          
-          // else {
-          //   this.log.debug('No valid session token');
-          //   await this.getSessionToken();
-
-          //   // retry last request
-          //   return await this.request(uri.split('\\?token|\\&token', 2)[0]);
-
-          // }
-        } else {
-          this.log.error(`ERROR: ${response.data.message}`);
-        }
-      } else {
-        return response.data;
-      }
-    } catch (error) {
-      this.log.error(`A request error occurred: ${error}`);
-    }
-  }
-
-  /**
-   * New dSS API request
-   * @param uri 
-   * @returns JSON object
-   */
-  private async newAPIrequest(uri: string): Promise<any> {
-
-    this.log.debug(`Request [GET ${uri}]`);
-
-    try {
-      const response = await this.axiosInstance({
-        url: uri,
-        timeout: 10000,
-      });
-
-      this.log.debug(`Response [GET ${uri}] - ${JSON.stringify(response.data)}`);
       
-      if (response.status !== 200) {
-        this.log.error(response.data.message);
-      } else {
+      if (response.status === 200) {
+        this.log.debug(`[Response of ${method}: ${url}] ${JSON.stringify(response.data)}`);
         return response.data;
+      } else if (response.status === 204) {
+        this.log.debug(`[Status ${response.status}] for ${method}: ${url}`);
+        return;
+      } else {
+        this.log.error(`Status ${response.status} - ${response.data.message}`);
       }
     } catch (error) {
       this.log.error(`A request error occurred: ${error}`);
     }
   }
-
 }
