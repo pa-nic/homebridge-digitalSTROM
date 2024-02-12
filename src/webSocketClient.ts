@@ -105,6 +105,7 @@ export default class webSocketClient {
   }
 
   private handleMessage(msg: string) {
+    msg = msg.replace('\u001e', '');
     const [command, payload] = msg.split(';');
     this.log.debug('Received message: ' + JSON.stringify({command, payload}));
     this.listeners.forEach((listener) => listener.callback(command));
