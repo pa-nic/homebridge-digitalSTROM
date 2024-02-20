@@ -84,10 +84,8 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
         this.webSocketClient.addMessageListener('STATUS_LISTENER', (msg: string) => { 
 
           const json = JSON.parse(msg);
-          const status = json.arguments[0].type;
-          this.log.debug(`STATUS_LISTENER: ${status}`);
-  
-          if (status === 'apartmentStatusChanged') {
+          if (json.arguments[0].type === 'apartmentStatusChanged') {
+            this.log.debug('STATUS_LISTENER: Apartment status changed');
             this.updateAccessories();
           }
         });
