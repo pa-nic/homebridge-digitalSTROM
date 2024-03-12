@@ -149,10 +149,20 @@ export class digitalStromAPI {
         this.log.debug(`[Status ${response.status}] for ${method}: ${url}`);
         return;
       } else {
-        this.log.error(`Status ${response.status} - ${response.data.message}`);
+        this.log.debug(`Status ${response.status} - ${response.data.message}`);
       }
     } catch (error) {
-      this.log.error(`A request error occurred: ${error}`);
+      if (error.response.status === 401) {
+        // 401 Unauthorized
+        this.log.error('[ERROR 401]: Unauthorized - Check your dSS AppToken');
+      } else if (error.request) {
+        // The request was made but no response was received
+        // `error.request` is an instance of http.ClientRequest in node.js
+        this.log.error(error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        this.log.error('A request error occurred:', error.message);
+      }
     }
   }
 }
