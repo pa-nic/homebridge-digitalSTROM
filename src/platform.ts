@@ -211,23 +211,30 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
    * Get device type
    */
   private getDeviceType(device) {
-    switch (device.attributes.technicalName.substring(0,2)) {
-      case 'GE':
-        // Is device actually a light and not just a room/area button?
-        if (Object.prototype.hasOwnProperty.call(device.attributes, 'outputs')) {
-          return 'light';
-        } else {
+    // Only parse devices providing a technical name
+    if(device.attributes.technicalName &&
+      device.attributes.technicalName.lenght() >= 2
+    ) {
+      switch (device.attributes.technicalName.substring(0,2)) {
+        case 'GE':
+          // Is device actually a light and not just a room/area button?
+          if (Object.prototype.hasOwnProperty.call(device.attributes, 'outputs')) {
+            return 'light';
+          } else {
+            return 'notsupported';
+          }
+        case 'GR':
+          // Is device actually a blind / roller shutter
+          if (device.attributes.outputs.find((o) => o.id === 'shadePositionOutside')) {
+            return 'shade';
+          } else {
+            return 'notsupported';
+          }
+        default:
           return 'notsupported';
-        }
-      case 'GR':
-        // Is device actually a blind / roller shutter
-        if (device.attributes.outputs.find((o) => o.id === 'shadePositionOutside')) {
-          return 'shade';
-        } else {
-          return 'notsupported';
-        }
-      default:
-        return 'notsupported';
+      }
+    } else {
+      return 'notsupported';
     }
   }
 
