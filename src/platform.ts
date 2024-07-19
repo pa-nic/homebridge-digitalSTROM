@@ -213,7 +213,8 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
   private getDeviceType(device) {
     // Only parse devices providing a technical name
     if(device.attributes.technicalName &&
-      device.attributes.technicalName.lenght() >= 2
+      device.attributes.technicalName !== null &&
+      device.attributes.technicalName.length >= 2
     ) {
       switch (device.attributes.technicalName.substring(0,2)) {
         case 'GE':
