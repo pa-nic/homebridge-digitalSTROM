@@ -1,4 +1,4 @@
-import { API, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service, Characteristic, APIEvent } from 'homebridge';
+import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { digitalStromAPI } from './digitalStromAPI';
 import webSocketClient from './webSocketClient';
@@ -9,6 +9,7 @@ import { ShadeAccessory } from './accessories/shades';
 type AccessoryUuid = string;
 
 /**
+ * HomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
  * parse the user config and discover/register accessories with Homebridge.
  */
@@ -34,8 +35,8 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
    */
   constructor(
     public readonly log: Logging,
-    public config: PlatformConfig,
-    readonly api: API,
+    public readonly config: PlatformConfig,
+    public readonly api: API,
   ) {
 
     this.accessories = [];
@@ -72,7 +73,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
     // Dynamic Platform plugins should only register new accessories after this event was fired,
     // in order to ensure they weren't added to homebridge already. This event can also be used
     // to start discovery of new accessories.
-    this.api.on(APIEvent.DID_FINISH_LAUNCHING, async () => {
+    this.api.on('didFinishLaunching', async () => {
       try {
         // Run the method to discover / register your devices as accessories
         await this.discoverDevices();
@@ -97,7 +98,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
     });
 
     // When this event is fired it means the plugin fails to load or Homebridge restarts
-    this.api.on(APIEvent.SHUTDOWN, async () => this.pluginShutdown());
+    this.api.on('shutdown', async () => this.pluginShutdown());
   }
 
   /**

@@ -1,48 +1,49 @@
 {
-  "displayName": "digitalSTROM",
-  "name": "homebridge-digitalstrom-plugin",
-  "version": "0.5.2",
-  "author": {
-    "name": "Patrick Probst",
-    "url": "https://8028.de"
+  "author" : {
+    "name" : "Patrick Probst",
+    "url" : "https://8028.de"
   },
-  "description": "digitalSTROM plugin for homebridge",
-  "license": "Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/pa-nic/homebridge-digitalSTROM.git"
+  "bugs" : {
+    "url" : "https://github.com/pa-nic/homebridge-digitalSTROM/issues"
   },
-  "bugs": {
-    "url": "https://github.com/pa-nic/homebridge-digitalSTROM/issues"
+  "dependencies" : {
+    "axios" : "^0.21.0",
+    "interval-promise" : "^1.4.0",
+    "websocket" : "^1.0.34"
   },
-  "engines": {
-    "node": ">=10.17.0",
-    "homebridge": ">=1.3.0"
+  "description" : "digitalSTROM plugin for homebridge",
+  "devDependencies" : {
+    "@eslint/js" : "^9.14.0",
+    "@types/eslint__js" : "^8.42.3",
+    "@types/node" : "^22.8.6",
+    "eslint" : "^9.14.0",
+    "homebridge" : "^2.0.0-beta.0",
+    "nodemon" : "^3.1.7",
+    "rimraf" : "^6.0.1",
+    "ts-node" : "^10.9.2",
+    "typescript" : "^5.6.3",
+    "typescript-eslint" : "^8.12.2"
   },
-  "main": "dist/index.js",
-  "scripts": {
-    "lint": "eslint src/**.ts --max-warnings=0",
-    "watch": "npm run build && npm link && nodemon",
-    "build": "rimraf ./dist && tsc",
-    "prepublishOnly": "npm run lint && npm run build"
+  "displayName" : "digitalSTROM",
+  "engines" : {
+    "homebridge" : "^1.8.0 || ^2.0.0-beta.0",
+    "node" : "^18.20.4 || ^20.18.0 || ^22.10.0"
   },
-  "keywords": [
+  "keywords" : [
     "homebridge-plugin"
   ],
-  "dependencies": {
-    "axios": "^0.21.0",
-    "interval-promise": "^1.4.0",
-    "websocket": "^1.0.34"
+  "license" : "Apache-2.0",
+  "main" : "dist/index.js",
+  "name" : "homebridge-digitalstrom-plugin",
+  "repository" : {
+    "type" : "git",
+    "url" : "git://github.com/pa-nic/homebridge-digitalSTROM.git"
   },
-  "devDependencies": {
-    "@types/node": "^14.14.31",
-    "@typescript-eslint/eslint-plugin": "^4.16.1",
-    "@typescript-eslint/parser": "^4.16.1",
-    "eslint": "^7.21.0",
-    "homebridge": "^1.3.1",
-    "nodemon": "^2.0.7",
-    "rimraf": "^3.0.2",
-    "ts-node": "^9.1.1",
-    "typescript": "^4.2.2"
-  }
+  "scripts" : {
+    "build" : "rimraf ./dist && tsc",
+    "lint" : "eslint src/**.ts --max-warnings=0",
+    "prepublishOnly" : "npm run lint && npm run build",
+    "watch" : "npm run build && npm link && nodemon"
+  },
+  "version" : "0.5.2"
 }
