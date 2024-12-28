@@ -135,6 +135,12 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
       // Get type of this device
       const deviceType = this.getDeviceType(device);
 
+      if (device.attributes.name === null) {
+        // Skip device with no name
+        this.log.info(`Ignoring: ${device.id}. Please set a name for the device in your DSS`);
+        continue;
+      }
+
       if (deviceType === 'notsupported') {
         // This type of accessory is not supported
         this.log.info(`Ignoring: ${device.attributes.name} of type: ${device.attributes.technicalName} is not supported`);
