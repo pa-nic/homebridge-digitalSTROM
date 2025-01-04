@@ -112,7 +112,7 @@ export default class webSocketClient {
   }
 
   public sendWebSocketCommand(command: string, payload = '') {
-    this.log.debug(`SENDING SOCKET MESSAGE: ${JSON.stringify({ command, payload} )}`);
+    this.log.debug(`SENDING SOCKET MESSAGE: ${JSON.stringify({ command, payload } )}`);
 
     return new Promise<void>((resolve, reject) => {
       if (!this.connection) {
