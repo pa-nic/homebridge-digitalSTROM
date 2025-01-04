@@ -238,6 +238,13 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
           } else {
             return 'notsupported';
           }
+          case 'SW':
+            // Is device actually a light and not just a room/area button?
+            if (device.attributes.technicalName == 'SW-TKM200' && Object.prototype.hasOwnProperty.call(device.attributes, 'outputs')) {
+              return 'light';
+            } else {
+              return 'notsupported';
+            }
         default:
           return 'notsupported';
       }
