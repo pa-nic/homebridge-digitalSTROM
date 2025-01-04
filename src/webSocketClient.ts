@@ -1,4 +1,4 @@
-import {client as WsClient, connection as WsConnection} from 'websocket';
+import { client as WsClient, connection as WsConnection } from 'websocket';
 import interval from 'interval-promise';
 import { Logging } from 'homebridge';
 
@@ -95,7 +95,7 @@ export default class webSocketClient {
 
   public addMessageListener(listenerId: string, callback: (msg) => unknown) {
     this.log.debug(`Adding connection listener: ${listenerId}`);
-    this.listeners.push({id: listenerId, callback});
+    this.listeners.push({ id: listenerId, callback });
   }
 
   public removeMessageListener(listenerId: string) {
@@ -107,12 +107,12 @@ export default class webSocketClient {
   private handleMessage(msg: string) {
     msg = msg.replace('\u001e', '');
     const [command, payload] = msg.split(';');
-    this.log.debug('Received message: ' + JSON.stringify({command, payload}));
+    this.log.debug('Received message: ' + JSON.stringify({ command, payload }));
     this.listeners.forEach((listener) => listener.callback(command));
   }
 
   public sendWebSocketCommand(command: string, payload = '') {
-    this.log.debug(`SENDING SOCKET MESSAGE: ${JSON.stringify({command, payload})}`);
+    this.log.debug(`SENDING SOCKET MESSAGE: ${JSON.stringify({ command, payload} )}`);
 
     return new Promise<void>((resolve, reject) => {
       if (!this.connection) {

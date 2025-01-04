@@ -167,16 +167,16 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
 
       // Create the accessory handler
       switch (accessory.context.deviceType) {
-        case 'light':
-          this.configuredAccessories.set(accessory.UUID, new LightAccessory(this, accessory));
-          break;
-        case 'shade':
-          this.configuredAccessories.set(accessory.UUID, new ShadeAccessory(this, accessory));
-          break;
-        default:
-          // We should never get here.
-          this.log.error(`Unknown device of type ${device.attributes.technicalName} detected: ${device.attributes.name}.`);
-          break;
+      case 'light':
+        this.configuredAccessories.set(accessory.UUID, new LightAccessory(this, accessory));
+        break;
+      case 'shade':
+        this.configuredAccessories.set(accessory.UUID, new ShadeAccessory(this, accessory));
+        break;
+      default:
+        // We should never get here.
+        this.log.error(`Unknown device of type ${device.attributes.technicalName} detected: ${device.attributes.name}.`);
+        break;
       }   
       
       // Refresh the accessory cache with these values.
@@ -224,29 +224,29 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
       device.attributes.technicalName.length >= 2
     ) {
       switch (device.attributes.technicalName.substring(0,2)) {
-        case 'GE':
-          // Is device actually a light and not just a room/area button?
-          if (Object.prototype.hasOwnProperty.call(device.attributes, 'outputs')) {
-            return 'light';
-          } else {
-            return 'notsupported';
-          }
-        case 'GR':
-          // Is device actually a blind / roller shutter
-          if (device.attributes.outputs.find((o) => o.id === 'shadePositionOutside')) {
-            return 'shade';
-          } else {
-            return 'notsupported';
-          }
-          case 'SW':
-            // Is device actually a light and not just a room/area button?
-            if (device.attributes.technicalName == 'SW-TKM200' && Object.prototype.hasOwnProperty.call(device.attributes, 'outputs')) {
-              return 'light';
-            } else {
-              return 'notsupported';
-            }
-        default:
+      case 'GE':
+        // Is device actually a light and not just a room/area button?
+        if (Object.prototype.hasOwnProperty.call(device.attributes, 'outputs')) {
+          return 'light';
+        } else {
           return 'notsupported';
+        }
+      case 'GR':
+        // Is device actually a blind / roller shutter
+        if (device.attributes.outputs.find((o) => o.id === 'shadePositionOutside')) {
+          return 'shade';
+        } else {
+          return 'notsupported';
+        }
+      case 'SW':
+        // Is device actually a light and not just a room/area button?
+        if (device.attributes.technicalName === 'SW-TKM200' && Object.prototype.hasOwnProperty.call(device.attributes, 'outputs')) {
+          return 'light';
+        } else {
+          return 'notsupported';
+        }
+      default:
+        return 'notsupported';
       }
     } else {
       return 'notsupported';

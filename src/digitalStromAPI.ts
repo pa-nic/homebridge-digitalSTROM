@@ -22,7 +22,7 @@ export class digitalStromAPI {
         rejectUnauthorized: false,
       }),
       baseURL: `https://${dssIP}:8080`,
-      headers: {'Authorization': `Bearer ${this.appToken}`},
+      headers: { 'Authorization': `Bearer ${this.appToken}` },
       timeout: 10000,
     });
   }
