@@ -21,7 +21,6 @@ You are currently able to directly control the following functions/devices:
 | HW-Info | Group | Color | Functions | 
 | --- | --- | --- | --- |
 | GE-* | Lights | yellow | Turn on/off, brightness |
-| SW-TKM200 | Lights | black | Turn on/off, brightness |
 | GR-* | Shades | gray | Shade position (outside) |
 
 Limitations: There is currently no way to automatically asign devices to floors, rooms, groups in HomeKit. So this has to be done manually within HomeKit.
