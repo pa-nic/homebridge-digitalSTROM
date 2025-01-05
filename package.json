@@ -9,7 +9,6 @@
   "dependencies": {
     "axios": "^0.21.0",
     "interval-promise": "^1.4.0",
-    "node": "^23.5.0",
     "websocket": "^1.0.34"
   },
   "description": "digitalSTROM plugin for homebridge",
