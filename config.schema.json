@@ -3,7 +3,10 @@
   "headerDisplay" : "Homebridge plugin for digitalSTROM.",
   "pluginAlias" : "DigitalStromPlugin",
   "pluginType" : "platform",
+  "singular" : true,
+  "strictValidation" : false,
   "schema" : {
+    "type" : "object",
     "properties" : {
       "name" : {
         "default" : "digitalSTROM",
@@ -30,9 +33,6 @@
         "title" : "Options",
         "type" : "object"
       }
-    },
-    "type" : "object"
+    }
   }
-  "singular" : true,
-  "strictValidation" : false
 }
