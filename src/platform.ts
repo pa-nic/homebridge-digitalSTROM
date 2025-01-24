@@ -192,7 +192,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
       if(!device) {
 
         this.log.warn(`Device: ${oldAccessory.displayName} - is no longer available and will be removed`);
-        delete this.configuredAccessories[oldAccessory.UUID];
+        this.configuredAccessories.delete[oldAccessory.UUID];
         this.accessories.splice(this.accessories.indexOf(oldAccessory), 1);
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [oldAccessory]);
       }
