@@ -7,7 +7,7 @@
     "url": "https://github.com/pa-nic/homebridge-digitalSTROM/issues"
   },
   "dependencies": {
-    "axios": "^0.21.0",
+    "axios": "^1.7.9",
     "interval-promise": "^1.4.0",
     "websocket": "^1.0.34"
   },
