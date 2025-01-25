@@ -30,7 +30,9 @@
     "node": "^18.20.4 || ^20.18.0 || ^22.10.0"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "homekit",
+    "digitalstrom"
   ],
   "license": "Apache-2.0",
   "main": "dist/index.js",
@@ -39,6 +41,7 @@
     "type": "git",
     "url": "git://github.com/pa-nic/homebridge-digitalSTROM.git"
   },
+  "homepage": "https://github.com/pa-nic/homebridge-digitalSTROM",
   "scripts": {
     "build": "rimraf ./dist && tsc",
     "lint": "eslint src/**.ts --max-warnings=0",
