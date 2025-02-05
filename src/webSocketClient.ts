@@ -58,10 +58,14 @@ export default class webSocketClient {
       });
 
       this.connection.on('message', (message) => {
-        if (message.type !== 'utf8') {
-          throw new Error('Cannot handle binary WebSocket messages...');
+        try {
+          if (message.type !== 'utf8') {
+            throw new Error('Cannot handle binary WebSocket messages...');
+          }
+          this.handleMessage(message.utf8Data as string);
+        } catch (err) {
+          this.log.error('Error handling message:', err);
         }
-        this.handleMessage(message.utf8Data as string);
       });
 
       if (callback) {
@@ -90,7 +94,11 @@ export default class webSocketClient {
   }
 
   public close() {
-    this.connection!.close();
+    try {
+      this.connection!.close();
+    } catch (err) {
+      this.log.error('Error closing connection:', err);
+    }
   }
 
   public addMessageListener(listenerId: string, callback: (msg) => unknown) {
@@ -105,10 +113,14 @@ export default class webSocketClient {
   }
 
   private handleMessage(msg: string) {
-    msg = msg.replace('\u001e', '');
-    const [command, payload] = msg.split(';');
-    this.log.debug('Received message: ' + JSON.stringify({ command, payload }));
-    this.listeners.forEach((listener) => listener.callback(command));
+    try {
+      msg = msg.replace('\u001e', '');
+      const [command, payload] = msg.split(';');
+      this.log.debug('Received message: ' + JSON.stringify({ command, payload }));
+      this.listeners.forEach((listener) => listener.callback(command));
+    } catch (err) {
+      this.log.error('Error processing message:', err);
+    }
   }
 
   public sendWebSocketCommand(command: string, payload = '') {

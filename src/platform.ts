@@ -83,17 +83,19 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
 
         // WebSocket listener
         this.webSocketClient.addMessageListener('STATUS_LISTENER', (msg: string) => { 
-
-          const json = JSON.parse(msg);
-          if (json.arguments[0].type === 'apartmentStatusChanged') {
-            this.log.debug('STATUS_LISTENER: Apartment status changed');
-            this.updateAccessories();
+          try {
+            const json = JSON.parse(msg);
+            if (json.arguments[0].type === 'apartmentStatusChanged') {
+              this.log.debug('STATUS_LISTENER: Apartment status changed');
+              this.updateAccessories();
+            }
+          } catch (error) {
+            this.log.error('Error handling WebSocket message:', error);
           }
         });
 
       } catch (error) {
-        this.log.error(error.message);
-        this.log.debug(error);
+        this.log.error('Error during didFinishLaunching:', error);
       }
     });
 
@@ -120,82 +122,86 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
    * must not be registered again to prevent "duplicate UUID" errors.
    */
   private async discoverDevices() {
+    try {
 
-    this.dsAppartment = await this.dsAPI.getApartment();
+      this.dsAppartment = await this.dsAPI.getApartment();
 
-    const dsDevices = this.dsAppartment.included.functionBlocks;
+      const dsDevices = this.dsAppartment.included.functionBlocks;
 
-    // Loop over the discovered devices and register each one if it has not already been registered
-    for (const device of dsDevices) {
+      // Loop over the discovered devices and register each one if it has not already been registered
+      for (const device of dsDevices) {
 
-      // Generate a unique id for the accessory. This should be generated from
-      // something globally unique, but constant, in this case the id/dSUID of the device
-      const uuid = this.generateUUID(device.id);
+        // Generate a unique id for the accessory. This should be generated from
+        // something globally unique, but constant, in this case the id/dSUID of the device
+        const uuid = this.generateUUID(device.id);
 
-      // Get type of this device
-      const deviceType = this.getDeviceType(device);
+        // Get type of this device
+        const deviceType = this.getDeviceType(device);
 
-      if (device.attributes.name === null) {
-        // Skip device with no name
-        this.log.info(`Ignoring: ${device.id}. Please set a name for the device in your DSS`);
-        continue;
+        if (device.attributes.name === null) {
+          // Skip device with no name
+          this.log.info(`Ignoring: ${device.id}. Please set a name for the device in your DSS`);
+          continue;
+        }
+
+        if (deviceType === 'notsupported') {
+          // This type of accessory is not supported
+          this.log.info(`Ignoring: ${device.attributes.name} of type: ${device.attributes.technicalName} is not supported`);
+          continue;
+        }
+
+        // See if we already know about this accessory or if it's truly new. If it is new, add it to HomeKit.
+        let accessory = this.accessories.find(x => x.UUID === uuid);
+
+        if(!accessory) {
+          accessory = new this.api.platformAccessory(device.attributes.name, uuid);
+
+          this.log.info(`${device.attributes.name}: Adding ${deviceType} device to HomeKit.` );
+
+          // Register this accessory with homebridge and add it to the accessory array so we can track it.
+          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+          this.accessories.push(accessory);
+        }
+
+        // Store a copy of the device object in the `accessory.context`
+        // The `context` property can be used to store any data about the accessory you may need
+        accessory.context.device = device;
+        accessory.context.deviceType = deviceType;
+
+        // Create the accessory handler
+        switch (accessory.context.deviceType) {
+        case 'light':
+          this.configuredAccessories.set(accessory.UUID, new LightAccessory(this, accessory));
+          break;
+        case 'shade':
+          this.configuredAccessories.set(accessory.UUID, new ShadeAccessory(this, accessory));
+          break;
+        default:
+          // We should never get here.
+          this.log.error(`Unknown device of type ${device.attributes.technicalName} detected: ${device.attributes.name}.`);
+          break;
+        }   
+        
+        // Refresh the accessory cache with these values.
+        this.api.updatePlatformAccessories([accessory]);
       }
 
-      if (deviceType === 'notsupported') {
-        // This type of accessory is not supported
-        this.log.info(`Ignoring: ${device.attributes.name} of type: ${device.attributes.technicalName} is not supported`);
-        continue;
+      // Remove dss devices that are no longer available, but we still have in HomeKit.
+      for(const oldAccessory of this.accessories) {
+
+        const device = oldAccessory.context.device;
+
+        // Device not present anymore in the dss system
+        if(!device) {
+
+          this.log.warn(`Device: ${oldAccessory.displayName} - is no longer available and will be removed`);
+          delete this.configuredAccessories[oldAccessory.UUID];
+          this.accessories.splice(this.accessories.indexOf(oldAccessory), 1);
+          this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [oldAccessory]);
+        }
       }
-
-      // See if we already know about this accessory or if it's truly new. If it is new, add it to HomeKit.
-      let accessory = this.accessories.find(x => x.UUID === uuid);
-
-      if(!accessory) {
-        accessory = new this.api.platformAccessory(device.attributes.name, uuid);
-
-        this.log.info(`${device.attributes.name}: Adding ${deviceType} device to HomeKit.` );
-
-        // Register this accessory with homebridge and add it to the accessory array so we can track it.
-        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
-        this.accessories.push(accessory);
-      }
-
-      // Store a copy of the device object in the `accessory.context`
-      // The `context` property can be used to store any data about the accessory you may need
-      accessory.context.device = device;
-      accessory.context.deviceType = deviceType;
-
-      // Create the accessory handler
-      switch (accessory.context.deviceType) {
-      case 'light':
-        this.configuredAccessories.set(accessory.UUID, new LightAccessory(this, accessory));
-        break;
-      case 'shade':
-        this.configuredAccessories.set(accessory.UUID, new ShadeAccessory(this, accessory));
-        break;
-      default:
-        // We should never get here.
-        this.log.error(`Unknown device of type ${device.attributes.technicalName} detected: ${device.attributes.name}.`);
-        break;
-      }   
-      
-      // Refresh the accessory cache with these values.
-      this.api.updatePlatformAccessories([accessory]);
-    }
-
-    // Remove dss devices that are no longer available, but we still have in HomeKit.
-    for(const oldAccessory of this.accessories) {
-
-      const device = oldAccessory.context.device;
-
-      // Device not present anymore in the dss system
-      if(!device) {
-
-        this.log.warn(`Device: ${oldAccessory.displayName} - is no longer available and will be removed`);
-        delete this.configuredAccessories[oldAccessory.UUID];
-        this.accessories.splice(this.accessories.indexOf(oldAccessory), 1);
-        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [oldAccessory]);
-      }
+    } catch (error) {
+      this.log.error('Error discovering devices:', error);
     }
   }
 
@@ -204,14 +210,18 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
    */
   private async updateAccessories() {
     this.log.debug('Update accessories');
-    const apartmentStatus = await this.dsAPI.getApartmentStatus();
-
-    const UUIDs = [...this.configuredAccessories.keys()];
-    UUIDs.forEach(uuid => {
-      const accessory = this.configuredAccessories.get(uuid)!;
-      accessory.updateState(apartmentStatus);
-    });
-
+    
+    try {
+      const apartmentStatus = await this.dsAPI.getApartmentStatus();
+      
+      const UUIDs = [...this.configuredAccessories.keys()];
+      UUIDs.forEach(uuid => {
+        const accessory = this.configuredAccessories.get(uuid)!;
+        accessory.updateState(apartmentStatus);
+      });
+    } catch (error) {
+      this.log.error('Failed to update accessories:', error);
+    }
   }
 
   /**
