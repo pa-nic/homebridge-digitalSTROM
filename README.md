@@ -51,7 +51,7 @@ Install the plugin and open its settings page.
 
 Enter the `IP` of your digitalSTROM server and your `applicationToken`
 
-*OPTIONAL:* Enter the SHA-256 fingerprint of your dSS server certificate to enable certificate validation (see [WiKi](https://github.com/pa-nic/homebridge-digitalSTROM/wiki/Certificate-validation) for details)
+**Optional:** Enter the `SHA-256 fingerprint` of your dSS server certificate to enable certificate validation (see [WiKi](https://github.com/pa-nic/homebridge-digitalSTROM/wiki/Certificate-validation) for details)
 
 <p align="center">
 
