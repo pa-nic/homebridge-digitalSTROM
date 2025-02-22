@@ -37,7 +37,7 @@ export class digitalStromAPI {
             httpsAgent: new https.Agent({
               rejectUnauthorized: true,
               ca: validatedCert,
-              checkServerIdentity: (_host, _cert) => undefined, // Bypass hostname verification
+              checkServerIdentity: () => undefined, // Bypass hostname verification
             }),
             baseURL: `https://${this.dssIP}:8080`,
             headers: { 'Authorization': `Bearer ${this.appToken}` },
