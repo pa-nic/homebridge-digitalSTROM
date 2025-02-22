@@ -67,7 +67,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
           options.dssip,
           options.token,
           options.fingerprint || null,
-          this.log
+          this.log,
         );
 
         // Initialize digitalStromAPI instance
