@@ -23,7 +23,7 @@ export class digitalStromAPI {
   public async initialize(): Promise<void> {
     if (this.fingerprint) {
       // Remove spaces and dashes from the fingerprint string
-      const cleanedFingerprint = this.fingerprint.replace(/[\s-]/g, '');
+      const cleanedFingerprint = this.fingerprint.replace(/[\s:-]/g, '');
       const sha256Regex = /^[A-Fa-f0-9]{64}$/;
       let validatedCert: string | null = null;
       try {
