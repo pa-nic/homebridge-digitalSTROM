@@ -27,8 +27,8 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
 
   protected dsAppartment;
 
-  public readonly dsAPI!: digitalStromAPI;
-  private readonly webSocketClient!: webSocketClient;
+  public  dsAPI!: digitalStromAPI;
+  private  webSocketClient!: webSocketClient;
 
   /**
    * This constructor is invoked by homebridge.
@@ -54,19 +54,6 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
       return;
     }
 
-    // Create digitalStromAPI instance
-    this.dsAPI = new digitalStromAPI(
-      options.dssip,
-      options.token,
-      this.log,
-    );
-
-    // Create webSocket instance
-    this.webSocketClient = new webSocketClient(
-      options.dssip,
-      this.log,
-    );
-
     this.log.debug('Finished initializing platform:', this.config.name);
 
     // When this event is fired it means Homebridge has restored all cached accessories from disk.
@@ -75,6 +62,23 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
     // to start discovery of new accessories.
     this.api.on('didFinishLaunching', async () => {
       try {
+        // Create digitalStromAPI instance
+        this.dsAPI = new digitalStromAPI(
+          options.dssip,
+          options.token,
+          options.fingerprint || null,
+          this.log
+        );
+
+        // Initialize digitalStromAPI instance
+        await this.dsAPI.initialize();
+
+        // Create webSocket instance
+        this.webSocketClient = new webSocketClient(
+          options.dssip,
+          this.log,
+        );
+
         // Run the method to discover / register your devices as accessories
         await this.discoverDevices();
 
@@ -90,12 +94,14 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
               this.updateAccessories();
             }
           } catch (error) {
-            this.log.error('Error handling WebSocket message:', error);
+            this.log.error(`Error handling WebSocket message: ${error.message}`);
+            this.log.debug(error);
           }
         });
 
       } catch (error) {
-        this.log.error('Error during didFinishLaunching:', error);
+        this.log.error(`Error during didFinishLaunching: ${error.message}`);
+        this.log.debug(error);
       }
     });
 

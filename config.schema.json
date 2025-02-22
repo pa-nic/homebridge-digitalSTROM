@@ -28,6 +28,12 @@
             "required" : true,
             "title" : "dSS AppToken",
             "type" : "string"
+          },
+          "fingerprint" : {
+            "default" : "[SHA256 Fingerprint]",
+            "required" : false,
+            "title" : "dSS certificate fingerprint",
+            "type" : "string"
           }
         },
         "title" : "Options",

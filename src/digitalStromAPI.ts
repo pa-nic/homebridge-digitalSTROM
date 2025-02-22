@@ -2,6 +2,7 @@
 import { CharacteristicValue, Logging } from 'homebridge';
 import https from 'https';
 import axios, { AxiosInstance, Method } from 'axios';
+import crypto from 'crypto';
 
 interface patchBody {
   op: string;
@@ -10,20 +11,93 @@ interface patchBody {
 }
 
 export class digitalStromAPI {
-  private axiosInstance: AxiosInstance;
+  private axiosInstance!: AxiosInstance;
 
   constructor(
     private dssIP: string,
     private appToken: string,
+    private fingerprint: string | null,
     private log: Logging,
-  ) {
-    this.axiosInstance = axios.create({
-      httpsAgent: new https.Agent({
-        rejectUnauthorized: false,
-      }),
-      baseURL: `https://${dssIP}:8080`,
-      headers: { 'Authorization': `Bearer ${this.appToken}` },
-      timeout: 10000,
+  ) {}
+
+  public async initialize(): Promise<void> {
+    if (this.fingerprint) {
+      // Remove spaces and dashes from the fingerprint string
+      const cleanedFingerprint = this.fingerprint.replace(/[\s-]/g, '');
+      const sha256Regex = /^[A-Fa-f0-9]{64}$/;
+      let validatedCert: string | null = null;
+      try {
+        if (!sha256Regex.test(cleanedFingerprint)) {
+          throw new Error('Invalid SHA-256 fingerprint format. Check your config.json');
+        } else {
+          validatedCert = await this.validateCertificate(this.dssIP, cleanedFingerprint);
+        }
+        if (validatedCert) {
+          this.axiosInstance = axios.create({
+            httpsAgent: new https.Agent({
+              rejectUnauthorized: true,
+              ca: validatedCert,
+              checkServerIdentity: (host, cert) => undefined, // Bypass hostname verification
+            }),
+            baseURL: `https://${this.dssIP}:8080`,
+            headers: { 'Authorization': `Bearer ${this.appToken}` },
+            timeout: 10000,
+          });
+          this.log.info('Certificate validated successfully');
+        } else {
+          throw new Error('Certificate validation failed.');
+        }
+      } catch (err) {
+        throw new Error(err.message);
+      }
+    } else {
+      this.log.info('No fingerprint provided in config. Skipping certificate validation.');
+      // Create axios instance without certificate validation
+      this.axiosInstance = axios.create({
+        httpsAgent: new https.Agent({
+          rejectUnauthorized: false,
+        }),
+        baseURL: `https://${this.dssIP}:8080`,
+        headers: { 'Authorization': `Bearer ${this.appToken}` },
+        timeout: 10000,
+      });
+    }
+  }
+
+  /**
+   * Validate the certificate
+   * @param dssIP IP address of the digitalSTROM server
+   * @param fingerprint SHA-256 fingerprint of the certificate
+   * @returns validated certificate as PEM string
+   */
+  private validateCertificate(dssIP: string, fingerprint: string): Promise<string | null> {
+    const options = {
+      hostname: dssIP,
+      port: 8080,
+      path: '/',
+      method: 'GET',
+      rejectUnauthorized: false,
+    };
+
+    return new Promise<string | null>((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        const cert = (res.socket as any).getPeerCertificate().raw;
+        const sha256 = crypto.createHash('sha256').update(cert).digest('hex').toLowerCase();
+        if (sha256 !== fingerprint.toLowerCase()) {
+          const errorMessage = 'Certificate fingerprint does not match';
+          reject(new Error(errorMessage));
+        } else {
+          const pemCert = `-----BEGIN CERTIFICATE-----\n${cert.toString('base64')}\n-----END CERTIFICATE-----\n`;
+          resolve(pemCert);
+        }
+      });
+
+      req.on('error', (e) => {
+        this.log.error(`Problem with request: ${e.message}`);
+        reject(e);
+      });
+
+      req.end();
     });
   }
 
@@ -36,7 +110,7 @@ export class digitalStromAPI {
     const params: URLSearchParams = new URLSearchParams();
     params.set('includeAll', 'true');
     const json = await this.getApiRequest('/api/v1/apartment/', params);
-    return json.data;
+    return json?.data;
   }
 
   /**
@@ -48,7 +122,7 @@ export class digitalStromAPI {
     const params: URLSearchParams = new URLSearchParams();
     params.set('includeAll', 'true');
     const json = await this.getApiRequest('/api/v1/apartment/status', params);
-    return json.data;
+    return json?.data;
   }
 
   /**
@@ -142,17 +216,19 @@ export class digitalStromAPI {
         params: params,
       });
       
-      if (response.status === 200) {
+      if (response && response.status === 200) {
         this.log.debug(`[Response of ${method}: ${url}] ${JSON.stringify(response.data)}`);
         return response.data;
-      } else if (response.status === 204) {
+      } else if (response && response.status === 204) {
         this.log.debug(`[Status ${response.status}] for ${method}: ${url}`);
         return;
-      } else {
+      } else if (response) {
         this.log.debug(`Status ${response.status} - ${response.data.message}`);
+      } else {
+        this.log.debug('No response received');
       }
     } catch (error) {
-      if (error.response.status === 401) {
+      if (error.response && error.response.status === 401) {
         // 401 Unauthorized
         this.log.error('[ERROR 401]: Unauthorized - Check your dSS AppToken');
       } else if (error.request) {
