@@ -7,6 +7,8 @@
 
 # Basic Homebridge Platform Plugin for digitalSTROM
 
+[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
+
 This is a (very) basic [Homebridge](https://homebridge.io) platform plugin for the [digitalSTROM](https://www.digitalstrom.com) smart home system.
 
 The idea is **not** to expose all the zones, scenes etc. of the digitalSTROM setup but rather be able to control all the devices directly and do most/all of the automation stuff within HomeKit. 
