@@ -26,7 +26,7 @@ You are currently able to directly control the following functions/devices:
 | GSW-KL200 | Lights | black | Turn on/off, brightness |
 | GR-* | Shades | gray | Shade position (outside) |
 
-Limitations: There is currently no way to automatically asign devices to floors, rooms, groups in HomeKit. So this has to be done manually within HomeKit.
+Limitations: There is currently no way to automatically assign devices to floors, rooms, groups in HomeKit. So this has to be done manually within HomeKit.
 
 ## Setup
 
