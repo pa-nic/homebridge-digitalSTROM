@@ -1,11 +1,12 @@
 import { client as WsClient, connection as WsConnection } from 'websocket';
-import interval from 'interval-promise';
 import { Logging } from 'homebridge';
 
 export default class webSocketClient {
   private client: WsClient | null = null;
   private connection: WsConnection | null = null;
   private listeners: Array<{id: string; callback: (msg: string) => unknown}> = [];
+  private isConnecting = false;
+  private heartbeatInterval: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly socketHost: string,
@@ -16,25 +17,40 @@ export default class webSocketClient {
   }
 
   private connect(callback?: (err?: Error) => void) {
+    if (this.isConnecting) {
+      this.log.debug('Already connecting, skipping...');
+      return;
+    }
+    this.isConnecting = true;
     this.client = new WsClient();
 
     this.client.on('connect', (connection: WsConnection) => {
       this.log.debug('WebSocket Connection established!');
+      this.isConnecting = false;
       this.connection = connection;
       this.connection.isAlive = true;
 
-      // Activate websocket notifications on the server
-      this.sendWebSocketCommand('{"protocol":"json","version":"1"}');
+      // Clear any existing heartbeat interval
+      if (this.heartbeatInterval) {
+        this.log.debug('Clearing existing heartbeat interval');
+        clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = null;
+      }
 
-      interval(async () => {
+      // Set up a new heartbeat interval
+      this.heartbeatInterval = setInterval(async () => {
         this.log.debug('WS heartbeat sent');
         try {
           await this.ping();
         } catch (err) {
+          this.log.error('Heartbeat failed, reconnecting...');
           this.connection.close();
           this.connect();
         }
       }, 120 * 1000);
+
+      // Activate websocket notifications on the server
+      this.sendWebSocketCommand('{"protocol":"json","version":"1"}');
 
       this.connection.on('error', (error) => {
         this.log.error('WS Connection Error');
@@ -49,9 +65,19 @@ export default class webSocketClient {
 
       this.connection.on('close', () => {
         this.log.debug('WebSocket Connection closed by Server');
+
+        // Clear the heartbeat interval
+        if (this.heartbeatInterval) {
+          this.log.debug('Clearing heartbeat interval on close');
+          clearInterval(this.heartbeatInterval);
+          this.heartbeatInterval = null;
+        }
+
+        this.isConnecting = false;
         this.connect();
       });
 
+      // this.connection.removeAllListeners('pong');
       this.connection.on('pong', () => {
         this.log.debug('WebSocket is alive');
         this.connection.isAlive = true;
@@ -74,6 +100,7 @@ export default class webSocketClient {
     });
 
     this.client.on('connectFailed', (err) => {
+      this.isConnecting = false;
       if (callback) {
         callback(err);
       }
@@ -95,6 +122,13 @@ export default class webSocketClient {
 
   public close() {
     try {
+      // Clear the heartbeat interval when explicitly closing the connection
+      if (this.heartbeatInterval) {
+        this.log.debug('Clearing heartbeat interval on explicit close');
+        clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = null;
+      }
+
       this.connection!.close();
     } catch (err) {
       this.log.error('Error closing connection:', err);
