@@ -7,6 +7,10 @@ export default class webSocketClient {
   private listeners: Array<{id: string; callback: (msg: string) => unknown}> = [];
   private isConnecting = false;
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private retryCount = 0;
+  private readonly maxRetries = 10;
+  private readonly HEARTBEAT_INTERVAL = 120 * 1000;
+  private readonly PING_TIMEOUT = 5000;
 
   constructor(
     private readonly socketHost: string,
@@ -21,6 +25,14 @@ export default class webSocketClient {
       this.log.debug('Already connecting, skipping...');
       return;
     }
+    if (this.retryCount >= this.maxRetries) {
+      this.log.error('Max retries reached, stopping reconnection server attempts');
+      if (callback) {
+        callback(new Error('Max retries reached'));
+      }
+      return;
+    }
+
     this.isConnecting = true;
     this.client = new WsClient();
 
@@ -47,33 +59,31 @@ export default class webSocketClient {
           this.connection.close();
           this.connect();
         }
-      }, 120 * 1000);
+      }, this.HEARTBEAT_INTERVAL);
 
       // Activate websocket notifications on the server
       this.sendWebSocketCommand('{"protocol":"json","version":"1"}');
 
       this.connection.on('error', (error) => {
-        this.log.error('WS Connection Error');
-        this.log.error(error.message);
-
+        this.log.error('WS Connection Error:', error.message);
+        if (callback) {
+          callback(error); // Notify the caller of the error
+        }
         this.connection!.close();
-
-        setTimeout(() => {
-          this.connect();
-        }, 1000);
+        setTimeout(() => this.connect(), 1000);
       });
 
       this.connection.on('close', () => {
         this.log.debug('WebSocket Connection closed by Server');
-
-        // Clear the heartbeat interval
         if (this.heartbeatInterval) {
           this.log.debug('Clearing heartbeat interval on close');
           clearInterval(this.heartbeatInterval);
           this.heartbeatInterval = null;
         }
-
         this.isConnecting = false;
+        if (callback) {
+          callback(new Error('Connection closed by server'));
+        }
         this.connect();
       });
 
@@ -104,19 +114,16 @@ export default class webSocketClient {
       if (callback) {
         callback(err);
       }
-
-      this.log.error('WS Connection failed!');
+      this.retryCount++;
+      this.log.error(`WS Connection failed! Retry ${this.retryCount}/${this.maxRetries}`);
       this.log.error(err.message);
 
-      setTimeout(() => {
-        this.connect();
-      }, 1000);
+      setTimeout(() => this.connect(), 1000 * this.retryCount);
     });
 
     this.log.debug('Connecting to WebSocket Server...');
     const wsServerAddress = `ws://${this.socketHost}:8090/api/v1/apartment/notifications`;
     this.log.debug(`Server: ${wsServerAddress}`);
-
     this.client.connect(wsServerAddress);
   }
 
@@ -187,21 +194,23 @@ export default class webSocketClient {
 
   private ping() {
     return new Promise<void>((resolve, reject) => {
-      try {
-        this.connection.ping();
-        let pong = false;
-        this.connection.once('pong', () => {
-          pong = true;
-          resolve();
-        });
-        setTimeout(() => {
-          if (!pong) {
-            reject(new Error('timeout'));
-          }
-        }, 5000);
-      } catch (err) {
-        reject(err);
+      if (!this.connection) {
+        reject(new Error('No connection available'));
+        return;
       }
+
+      this.connection.ping();
+      let pong = false;
+      this.connection.once('pong', () => {
+        pong = true;
+        resolve();
+      });
+
+      setTimeout(() => {
+        if (!pong) {
+          reject(new Error('Ping timeout'));
+        }
+      }, this.PING_TIMEOUT);
     });
   }
 
