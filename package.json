@@ -48,5 +48,5 @@
     "prepublishOnly": "npm run lint && npm run build",
     "watch": "npm run build && npm link && nodemon"
   },
-  "version": "0.7.3"
+  "version": "0.7.4-alpha.0"
 }
