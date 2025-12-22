@@ -39,7 +39,8 @@ export class digitalStromAPI {
       throw new Error('dssIP cannot be empty or undefined');
     }
     this.dssIP = dssIP;
-    this.fingerprint = fingerprint || '';
+    // Remove spaces, dashes, and colons from fingerprint
+    this.fingerprint = fingerprint ? fingerprint.replace(/[\s:-]/g, '') : '';
     this.token = token;
     this.disableCertValidation = disableCertValidation;
     this.log = log;
@@ -90,6 +91,7 @@ export class digitalStromAPI {
           this.axios.defaults.httpsAgent = new https.Agent({
             ca: pemCert,
             rejectUnauthorized: true, // Now we can enforce certificate validation
+            checkServerIdentity: () => undefined, // Bypass hostname verification
           });
           this.log.info('Certificate validation successful');
           return true;
@@ -181,7 +183,10 @@ export class digitalStromAPI {
  * Validates certificate against stored fingerprint.
  */
   private async validateCertificate(dssIP: string, fingerprint: string): Promise<string | null> {
-    if (!/^[0-9a-f:]{95}$|^[0-9a-f]{64}$/.test(fingerprint)) {
+    // Accept SHA256 fingerprint in hex, colon, dash, or space separated formats
+    const cleanedFingerprint = fingerprint ? fingerprint.replace(/[\s:-]/g, '') : '';
+    const sha256Regex = /^[A-Fa-f0-9]{64}$/;
+    if (!sha256Regex.test(cleanedFingerprint)) {
       this.log.error('Invalid fingerprint format');
       return null;
     }

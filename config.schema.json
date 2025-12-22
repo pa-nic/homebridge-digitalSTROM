@@ -32,15 +32,13 @@
           "disableCertificateValidation": {
             "title": "Disable Certificate Validation (NOT RECOMMENDED)",
             "type": "boolean",
-            "default": false,
-            "description": "Only disable for testing. This makes your connection insecure."
+            "default": false
           },
           "fingerprint": {
             "title": "dSS Certificate SHA256 Fingerprint",
             "type": "string",
             "required": false,
-            "pattern": "^([0-9a-fA-F]{2}:){31}[0-9a-fA-F]{2}$|^[0-9a-fA-F]{64}$",
-            "description": "SHA-256 fingerprint in hex format (with or without colons)"
+            "description": "SHA-256 fingerprint in hex format"
           }
         }
       }

@@ -66,9 +66,11 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
       return;
     }
 
-    // Validate fingerprint format if provided
-    if (options.fingerprint && !/^[0-9a-f:]{95}$|^[0-9a-f]{64}$/.test(options.fingerprint)) {
-      this.log.warn('Fingerprint format may be invalid. Expected 64 hex characters or colon-separated format.');
+    // Normalize fingerprint: remove spaces, dashes, and colons
+    const cleanedFingerprint = options.fingerprint ? options.fingerprint.replace(/[\s:-]/g, '') : '';
+    const sha256Regex = /^[A-Fa-f0-9]{64}$/;
+    if (options.fingerprint && !sha256Regex.test(cleanedFingerprint)) {
+      this.log.warn('Fingerprint format may be invalid. Expected 64 hex characters, optionally separated by colon, dash, or space.');
     }
 
     // Initialize the digitalSTROM API
