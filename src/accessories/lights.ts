@@ -1,125 +1,157 @@
-import { Service, CharacteristicValue } from 'homebridge';
-import { dssAccessory } from './base';
+import type { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
+import type { DigitalStromPlatform } from '../platform.js';
+import type { AccessoryHandler, FunctionBlock, Output, ApartmentStatus, DeviceStatus, OutputStatus } from '../digitalStromTypes.js';
+
 
 /**
- * An instance of this class is created for each digitalStrom light accessory your platform registers
- * Each accessory may expose multiple services of different service types.
+ * Represents a Homebridge accessory for a digitalSTROM light device.
+ * Handles state, brightness, and communication with the digitalSTROM API.
  */
-export class LightAccessory extends dssAccessory {
-  private service!: Service;  
-  private hasBrightness = false as boolean;
-  private targetValue = 0 as number;
-  private brightness = 0 as number;
+export class LightPlatformAccessory implements AccessoryHandler {
+  /** The Homebridge Lightbulb service */
+  private service: Service;
+  /** Whether this light supports brightness control */
+  private hasBrightness = false;
+  /** Cached target value (on/off) */
+  private targetValue = 0;
+  /** Cached brightness value */
+  private brightness = 0;
 
-  protected configureDevice(): void {
-    const device = this.accessory.context.device;
-    this.hasBrightness = device.attributes.outputs.find((o) => o.id === 'brightness').attributes.mode === 'gradual';
-
+  /**
+   * Constructs a new LightPlatformAccessory.
+   * @param platform The DigitalStromPlatform instance.
+   * @param accessory The Homebridge PlatformAccessory instance.
+   */
+  constructor(
+    private readonly platform: DigitalStromPlatform,
+    private readonly accessory: PlatformAccessory,
+  ) {
     // Set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'digitalStrom')
-      .setCharacteristic(this.platform.Characteristic.Model, 'device.attributes.technicalName')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'device.id');
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'DigitalSTROM')
+      .setCharacteristic(this.platform.Characteristic.Model, this.accessory.context.device.attributes?.technicalName || 'Light')
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.device.id);
 
-    // Get the LightBulb service if it exists, otherwise create a new LightBulb service
-    this.service = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
+    // Get the Lightbulb service if it exists, otherwise create a new one
+    this.service = this.accessory.getService(this.platform.Service.Lightbulb) 
+      || this.accessory.addService(this.platform.Service.Lightbulb);
 
-    // Set the service name, this is what is displayed as the default name on the Home app
-    // We are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, device.attributes.name);
+    // Set the service name
+    this.service.setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
 
-    // Each service must implement at-minimum the "required characteristics" for the given service type
-    // See https://developers.homebridge.io/#/service/Lightbulb
+    // Check if device supports brightness (gradual control)
+    const device = this.accessory.context.device as FunctionBlock;
+    const brightnessOutput = device.attributes?.outputs?.find(
+      (o: Output) => o.attributes?.type === 'lightBrightness' && o.attributes?.mode === 'gradual',
+    );
+    this.hasBrightness = !!brightnessOutput;
 
-    // Register register handlers for the On/Off Characteristic
+    // Register handlers for the On/Off Characteristic
     this.service.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setOn.bind(this))                 // SET - bind to the `setOn` method below
-      .onGet(this.getOn.bind(this));                // GET - bind to the `getOn` method below
+      .onSet(this.setOn.bind(this))
+      .onGet(this.getOn.bind(this));
 
-    // Register handlers for the Brightness Characteristic if device supports it
+    // Register handlers for the Brightness Characteristic only if supported
     if (this.hasBrightness) {
       this.service.getCharacteristic(this.platform.Characteristic.Brightness)
-        .onSet(this.setBrightness.bind(this))       // SET - bind to the 'setBrightness` method below
-        .onGet(this.getBrightness.bind(this));      // GET - bind to the 'getBrightness` method below
+        .onSet(this.setBrightness.bind(this))
+        .onGet(this.getBrightness.bind(this));
     }
+
+    this.platform.log.debug('LightPlatformAccessory created for:', this.accessory.displayName);
   }
 
   /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory
+   * Sets the On/Off state of the light.
+   * Called by Homebridge when the user toggles the light.
+   * @param value The new On/Off value (true for on, false for off).
    */
   async setOn(value: CharacteristicValue) {
-
-    if (value as boolean) {
-      this.platform.dsAPI.turnOnDevice(this.accessory.context.device.id);
-      this.platform.log.info(`${this.accessory.context.device.attributes.name} -> On`);
-    } else {
-      this.platform.dsAPI.turnOffDevice(this.accessory.context.device.id);
-      this.platform.log.info(`${this.accessory.context.device.attributes.name} -> Off`);
+    const deviceId = this.accessory.context.device.id;
+    const deviceName = this.accessory.context.device.attributes?.name;
+    
+    try {
+      if (value as boolean) {
+        await this.platform.dsAPI.turnOnDevice(deviceId);
+        this.platform.log.info(`${deviceName} → On`);
+      } else {
+        await this.platform.dsAPI.turnOffDevice(deviceId);
+        this.platform.log.info(`${deviceName} → Off`);
+      }
+    } catch (error) {
+      this.platform.log.error(`Failed to set ${deviceName}:`, error);
+      throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
 
-  async setBrightness(value: CharacteristicValue) {
-    const id = this.accessory.context.device.id;
-    this.platform.dsAPI.setDeviceOutputValue(id, id, 'brightness', value);
-    this.platform.log.info(`${this.accessory.context.device.attributes.name} brightness -> ${value}`);
+  /**
+   * Gets the current On/Off state of the light.
+   * Called by Homebridge to query the current state.
+   * @returns True if the light is on, false otherwise.
+   */
+  async getOn(): Promise<CharacteristicValue> {
+    // Return cached value - updates are handled by the updateState method
+    return this.targetValue > 0;
   }
 
   /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory
-   *
-   * GET requests should return as fast as possbile. A long delay here will result in
-   * HomeKit being unresponsive and a bad user experience in general.
-   *
-   * If your device takes time to respond you should update the status of your device
-   * asynchronously instead using the `updateCharacteristic` method instead.
-   * @example
-   * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
-   * 
-   * If you need to return an error to show the device as "Not Responding" in the Home app:
-   * throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+   * Sets the brightness of the light.
+   * Called by Homebridge when the user changes brightness.
+   * @param value The new brightness value (0-100).
    */
-  async getOn(): Promise<CharacteristicValue> {
-  
-    /* 
-     * Requesting the needed values from dSS slows down Homebridge.
-     * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
-     */
-
-    return (this.targetValue > 0);
+  async setBrightness(value: CharacteristicValue) {
+    const deviceId = this.accessory.context.device.id;
+    const deviceName = this.accessory.context.device.attributes?.name;
+    
+    try {
+      await this.platform.dsAPI.setDeviceOutputValue(deviceId, deviceId, 'brightness', value);
+      this.platform.log.info(`${deviceName} brightness → ${value}`);
+    } catch (error) {
+      this.platform.log.error(`Failed to set brightness for ${deviceName}:`, error);
+      throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    }
   }
 
+  /**
+   * Gets the current brightness of the light.
+   * Called by Homebridge to query the current brightness.
+   * @returns The current brightness value (0-100).
+   */
   async getBrightness(): Promise<CharacteristicValue> {
-    
-    /* 
-     * Requesting the needed values from dSS slows down Homebridge.
-     * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
-     */
-
+    // Return cached value - updates are handled by the updateState method
     return this.brightness;
   }
 
-  public updateState(apartmentStatus) {
-    this.platform.log.debug(`Update status of ${this.accessory.context.device.attributes.name}`);
+  /**
+   * Updates the accessory state from the latest apartment status.
+   * Called by the platform when apartment status changes.
+   * @param apartmentStatus The latest apartment status object.
+   */
+  public updateState(apartmentStatus: ApartmentStatus): void {
+    this.platform.log.debug(`Updating state for ${this.accessory.context.device.attributes?.name}`);
 
-    const deviceStatus = apartmentStatus.included.dsDevices.find((d) => d.id === this.accessory.context.device.id);
-
+    const deviceId = this.accessory.context.device.id;
+    const deviceStatus = apartmentStatus?.included?.dsDevices?.find((d: DeviceStatus) => d.id === deviceId);
+    
     // Sometimes output status is not availabe (i.e. during DSS maintenance tasks)
     // Only trigger update if new status is available
-    if (deviceStatus.attributes.functionBlocks[0].outputs) {
-      const deviceOutputBrightness = deviceStatus.attributes.functionBlocks[0].outputs.find((o) => o.id === 'brightness');
-      this.targetValue = Math.round(deviceOutputBrightness.targetValue);
+    if (!deviceStatus?.attributes?.functionBlocks?.[0]?.outputs) {
+      this.platform.log.debug(`No output status available for ${this.accessory.context.device.attributes?.name}`);
+      return;
+    }
 
-      // Update Characteristic.On to true if brightness > 0 otherwise false
+    const brightnessOutput = deviceStatus.attributes.functionBlocks[0].outputs.find(
+      (o: OutputStatus) => o.id === 'brightness',
+    );
+
+    if (brightnessOutput) {
+      this.targetValue = Math.round(brightnessOutput.targetValue);
       this.service.updateCharacteristic(this.platform.Characteristic.On, this.targetValue > 0);
 
-      // Update Characteristic.Brightness if device supports it
       if (this.hasBrightness) {
-        this.brightness = Math.round(deviceOutputBrightness.value);
-        this.service.updateCharacteristic(this.platform.Characteristic.Brightness,this.brightness);
+        this.brightness = Math.round(brightnessOutput.value);
+        this.service.updateCharacteristic(this.platform.Characteristic.Brightness, this.brightness);
       }
     }
   }
-    
 }

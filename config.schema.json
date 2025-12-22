@@ -1,44 +1,50 @@
 {
-  "footerDisplay" : "If you have any suggestions, please open an issue on [GitHub](https://github.com/pa-nic/digitalSTROM/issues).",
-  "headerDisplay" : "Homebridge plugin for digitalSTROM.",
-  "pluginAlias" : "DigitalStromPlugin",
-  "pluginType" : "platform",
-  "singular" : true,
-  "strictValidation" : false,
-  "schema" : {
-    "type" : "object",
-    "properties" : {
-      "name" : {
-        "default" : "digitalSTROM",
-        "description" : "You shouldn't need to change this.",
-        "required" : true,
-        "title" : "Name",
-        "type" : "string"
+  "pluginAlias": "DigitalStromPlugin",
+  "pluginType": "platform",
+  "singular": true,
+  "strictValidation": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "digitalSTROM",
+        "required": true
       },
-      "options" : {
-        "properties" : {
-          "dssip" : {
-            "default" : "192.168.10.20",
-            "required" : true,
-            "title" : "dSS IP",
-            "type" : "string"
+      "options": {
+        "type": "object",
+        "required": true,
+        "properties": {
+          "dssip": {
+            "title": "dSS IP Address",
+            "type": "string",
+            "required": true,
+            "format": "ipv4",
+            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
           },
-          "token" : {
-            "default" : "[Token]",
-            "required" : true,
-            "title" : "dSS AppToken",
-            "type" : "string"
+          "token": {
+            "title": "dSS API Token",
+            "type": "string",
+            "required": true,
+            "minLength": 1
           },
-          "fingerprint" : {
-            "default" : "[SHA256 Fingerprint]",
-            "required" : false,
-            "title" : "dSS certificate fingerprint",
-            "type" : "string"
+          "disableCertificateValidation": {
+            "title": "Disable Certificate Validation (NOT RECOMMENDED)",
+            "type": "boolean",
+            "default": false,
+            "description": "Only disable for testing. This makes your connection insecure."
+          },
+          "fingerprint": {
+            "title": "dSS Certificate SHA256 Fingerprint",
+            "type": "string",
+            "required": false,
+            "pattern": "^([0-9a-fA-F]{2}:){31}[0-9a-fA-F]{2}$|^[0-9a-fA-F]{64}$",
+            "description": "SHA-256 fingerprint in hex format (with or without colons)"
           }
-        },
-        "title" : "Options",
-        "type" : "object"
+        }
       }
     }
-  }
+  },
+  "footerDisplay": "If you have any suggestions, please open an issue on [GitHub](https://github.com/pa-nic/digitalSTROM/issues)."
 }

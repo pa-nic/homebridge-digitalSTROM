@@ -1,100 +1,176 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { CharacteristicValue, Logging } from 'homebridge';
+import axios, { AxiosInstance } from 'axios';
+import type { ApiResponse } from './digitalStromTypes.js';
 import https from 'https';
-import axios, { AxiosInstance, Method } from 'axios';
 import crypto from 'crypto';
+import { TLSSocket } from 'tls';
+import { Logger, CharacteristicValue } from 'homebridge';
 
-interface patchBody {
-  op: string;
-  path: string;
-  value: CharacteristicValue;
-}
-
+/**
+ * Provides methods to interact with the digitalSTROM API, including authentication,
+ * certificate validation, device control, and apartment status retrieval.
+ */
 export class digitalStromAPI {
-  private axiosInstance!: AxiosInstance;
+  /** Axios instance for HTTP requests */
+  private readonly axios: AxiosInstance;
+  /** digitalSTROM server IP address */
+  private readonly dssIP: string;
+  /** Logger instance */
+  private readonly log: Logger;
+  /** API token */
+  private readonly token: string;
+  /** Whether to disable certificate validation */
+  private readonly disableCertValidation: boolean;
+  /** Certificate fingerprint for validation */
+  private readonly fingerprint: string;
 
-  constructor(
-    private dssIP: string,
-    private appToken: string,
-    private fingerprint: string | null,
-    private log: Logging,
-  ) {}
+  private readonly DSS_API_PORT = 8080;
+  private readonly REQUEST_TIMEOUT = 10000; // 10 seconds
 
-  public async initialize(): Promise<void> {
-    if (this.fingerprint) {
-      // Remove spaces and dashes from the fingerprint string
-      const cleanedFingerprint = this.fingerprint.replace(/[\s:-]/g, '');
-      const sha256Regex = /^[A-Fa-f0-9]{64}$/;
-      let validatedCert: string | null = null;
-      try {
-        if (!sha256Regex.test(cleanedFingerprint)) {
-          throw new Error('Invalid SHA-256 fingerprint format. Check your config.json');
-        } else {
-          validatedCert = await this.validateCertificate(this.dssIP, cleanedFingerprint);
-        }
-        if (validatedCert) {
-          this.axiosInstance = axios.create({
-            httpsAgent: new https.Agent({
-              rejectUnauthorized: true,
-              ca: validatedCert,
-              checkServerIdentity: () => undefined, // Bypass hostname verification
-            }),
-            baseURL: `https://${this.dssIP}:8080`,
-            headers: { 'Authorization': `Bearer ${this.appToken}` },
-            timeout: 10000,
-          });
-          this.log.info('Certificate validated successfully');
-        } else {
-          throw new Error('Certificate validation failed.');
-        }
-      } catch (err) {
-        throw new Error(err.message);
+  /**
+   * Constructs a new digitalStromAPI instance.
+   * @param dssIP The digitalSTROM server IP address.
+   * @param token The API token.
+   * @param fingerprint The certificate fingerprint (SHA-256) or null.
+   * @param disableCertValidation Whether to disable certificate validation.
+   * @param log Logger instance.
+   */
+  constructor(dssIP: string, token: string, fingerprint: string | null, disableCertValidation: boolean, log: Logger) {
+    if (!dssIP || dssIP.trim() === '') {
+      throw new Error('dssIP cannot be empty or undefined');
+    }
+    this.dssIP = dssIP;
+    this.fingerprint = fingerprint || '';
+    this.token = token;
+    this.disableCertValidation = disableCertValidation;
+    this.log = log;
+
+    // Create axios instance with base configuration
+    this.axios = axios.create({
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false,
+      }),
+      baseURL: `https://${this.dssIP}:${this.DSS_API_PORT}`,
+      headers: { 'Authorization': `Bearer ${this.token}` },
+      timeout: this.REQUEST_TIMEOUT,
+    });
+
+    // Add request interceptor to include token
+    this.axios.interceptors.request.use((config) => {
+      if (config.params) {
+        config.params.token = this.token;
+      } else {
+        config.params = { token: this.token };
       }
-    } else {
-      this.log.info('No fingerprint provided in config. Skipping certificate validation.');
-      // Create axios instance without certificate validation
-      this.axiosInstance = axios.create({
-        httpsAgent: new https.Agent({
-          rejectUnauthorized: false,
-        }),
-        baseURL: `https://${this.dssIP}:8080`,
-        headers: { 'Authorization': `Bearer ${this.appToken}` },
-        timeout: 10000,
-      });
+      return config;
+    });
+
+    // Add response interceptor for error handling
+    this.axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        this.log.error('API request failed:', error.message);
+        throw error;
+      },
+    );
+  }
+
+  /**
+   * Initialize the API connection with certificate validation.
+   * Call this after instantiation to validate the certificate.
+   * @returns True if validation is successful or skipped, false otherwise.
+   */
+  async initializeValidation(): Promise<boolean> {
+    try {
+      if (this.disableCertValidation !== true && this.fingerprint && this.fingerprint.trim() !== '') {
+        this.log.info('Validating server certificate...');
+        const pemCert = await this.validateCertificate(this.dssIP, this.fingerprint);
+        
+        if (pemCert) {
+          // Update axios instance with validated certificate
+          this.axios.defaults.httpsAgent = new https.Agent({
+            ca: pemCert,
+            rejectUnauthorized: true, // Now we can enforce certificate validation
+          });
+          this.log.info('Certificate validation successful');
+          return true;
+        } else {
+          this.log.error('Certificate validation failed');
+          return false;
+        }
+      } else {
+        this.log.warn('No fingerprint provided in config - certificate validation skipped');
+        return true; // Continue without validation if no fingerprint
+      }
+    } catch (error: unknown) {
+      this.log.error('Failed to initialize API:', (error as Error).message ?? error);
+      return false;
     }
   }
 
   /**
-   * Validate the certificate
-   * @param dssIP IP address of the digitalSTROM server
-   * @param fingerprint SHA-256 fingerprint of the certificate
-   * @returns validated certificate as PEM string
-   */
-  private validateCertificate(dssIP: string, fingerprint: string): Promise<string | null> {
-    const options = {
-      hostname: dssIP,
-      port: 8080,
+ * Retrieves the peer certificate from the DSS server.
+ * @param validateFingerprint Optional fingerprint to validate against.
+ * @returns Object containing certificate data and validation result.
+ */
+  private async retrieveCertificate(
+    validateFingerprint?: string,
+  ): Promise<{ pemCert: string; fingerprint: string; isValid: boolean }> {
+    const options: https.RequestOptions = {
+      hostname: this.dssIP,
+      port: this.DSS_API_PORT,
       path: '/',
       method: 'GET',
       rejectUnauthorized: false,
+      timeout: this.REQUEST_TIMEOUT,
     };
 
-    return new Promise<string | null>((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const req = https.request(options, (res) => {
-        const cert = (res.socket as any).getPeerCertificate().raw;
-        const sha256 = crypto.createHash('sha256').update(cert).digest('hex').toLowerCase();
-        if (sha256 !== fingerprint.toLowerCase()) {
-          const errorMessage = 'Certificate fingerprint does not match';
-          reject(new Error(errorMessage));
-        } else {
-          const pemCert = `-----BEGIN CERTIFICATE-----\n${cert.toString('base64')}\n-----END CERTIFICATE-----\n`;
-          resolve(pemCert);
+        try {
+          const socket = res.socket as TLSSocket;
+        
+          if (!socket || typeof socket.getPeerCertificate !== 'function') {
+            throw new Error('Not a TLS connection');
+          }
+
+          const peerCert = socket.getPeerCertificate();
+        
+          if (!peerCert || Object.keys(peerCert).length === 0) {
+            throw new Error('No peer certificate available');
+          }
+
+          const cert = peerCert.raw;
+          if (!cert || cert.length === 0) {
+            throw new Error('Certificate data is empty');
+          }
+
+          const fingerprint = crypto
+            .createHash('sha256')
+            .update(cert)
+            .digest('hex')
+            .toLowerCase();
+
+          let isValid = true;
+          if (validateFingerprint) {
+            const normalizedFingerprint = validateFingerprint
+              .replace(/[:\s]/g, '')
+              .toLowerCase();
+            isValid = fingerprint === normalizedFingerprint;
+          }
+
+          const base64Cert = cert.toString('base64');
+          const pemCert = this.formatPemCertificate(base64Cert);
+
+          resolve({ pemCert, fingerprint, isValid });
+        } catch (error) {
+          reject(error);
         }
       });
 
-      req.on('error', (e) => {
-        this.log.error(`Problem with request: ${e.message}`);
-        reject(e);
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
       });
 
       req.end();
@@ -102,143 +178,194 @@ export class digitalStromAPI {
   }
 
   /**
-   * Get apartment structure
-   * @returns apartment structure as JSON object
+ * Validates certificate against stored fingerprint.
+ */
+  private async validateCertificate(dssIP: string, fingerprint: string): Promise<string | null> {
+    if (!/^[0-9a-f:]{95}$|^[0-9a-f]{64}$/.test(fingerprint)) {
+      this.log.error('Invalid fingerprint format');
+      return null;
+    }
+
+    try {
+      const { pemCert, isValid } = await this.retrieveCertificate(fingerprint);
+    
+      if (!isValid) {
+        this.log.error('Certificate fingerprint mismatch!');
+        return null;
+      }
+
+      this.log.info('Certificate validation successful');
+      return pemCert;
+    } catch (error) {
+      this.log.error('Error validating certificate:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Formats a base64 certificate string into proper PEM format.
+   * PEM format requires line breaks every 64 characters.
+   * @param base64Cert The base64-encoded certificate string.
+   * @returns The PEM-formatted certificate string.
    */
-  public async getApartment(): Promise<any> {
+  private formatPemCertificate(base64Cert: string): string {
+    const lines: string[] = [];
+    
+    // Split base64 string into 64-character lines
+    for (let i = 0; i < base64Cert.length; i += 64) {
+      lines.push(base64Cert.substring(i, i + 64));
+    }
+
+    return [
+      '-----BEGIN CERTIFICATE-----',
+      ...lines,
+      '-----END CERTIFICATE-----',
+    ].join('\n');
+  }
+
+  /**
+ * Gets certificate fingerprint without validation.
+ */
+  async getCertificateFingerprint(): Promise<string | null> {
+    try {
+      const { fingerprint } = await this.retrieveCertificate();
+      const formatted = fingerprint.match(/.{2}/g)?.join(':') || fingerprint;
+      this.log.debug(`Certificate SHA-256 fingerprint: ${formatted}`);
+      return fingerprint;
+    } catch (error) {
+      this.log.error('Error retrieving certificate:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Test the connection to the digitalSTROM server.
+   * @returns True if the connection is successful, false otherwise.
+   */
+  async testConnection(): Promise<boolean> {
+    try {
+      const response = await this.axios.get('/api/v1/apartment/dsServer');
+      this.log.debug('Connection test successful:', response.data);
+      return true;
+    } catch (error: unknown) {
+      this.log.error('Connection test failed:', (error as Error).message ?? error);
+      return false;
+    }
+  }
+  
+  /**
+   * Generic API POST request.
+   * @param url The API endpoint URL.
+   * @param data The request body data.
+   * @returns The response data of type T.
+   */
+  async postApiRequest<T = unknown>(url: string, data: unknown): Promise<T> {
+    try {
+      const response = await this.axios.post<ApiResponse<T>>(url, data);
+      return (response.data as { data: T }).data;
+    } catch (error: unknown) {
+      this.log.error(`POST request failed for ${url}:`, (error as Error).message ?? error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generic API PATCH request.
+   * @param url The API endpoint URL.
+   * @param data The request body data.
+   * @returns The response data of type T.
+   */
+  async patchApiRequest<T = unknown>(url: string, data: unknown): Promise<T> {
+    try {
+      const response = await this.axios.patch<ApiResponse<T>>(url, data);
+      return (response.data as { data: T }).data;
+    } catch (error: unknown) {
+      this.log.error(`PATCH request failed for ${url}:`, (error as Error).message ?? error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get apartment structure.
+   * @returns Apartment structure as a JSON object of type T.
+   */
+  async getApartment<T = unknown>(): Promise<T> {
     this.log.debug('Getting apartment');
-    const params: URLSearchParams = new URLSearchParams();
-    params.set('includeAll', 'true');
-    const json = await this.getApiRequest('/api/v1/apartment/', params);
-    return json?.data;
+    try {
+      const response = await this.axios.get<ApiResponse<T>>('/api/v1/apartment/', {
+        params: { includeAll: 'true' },
+      });
+      return (response.data as { data: T }).data;
+    } catch (error: unknown) {
+      this.log.error('Failed to get apartment:', (error as Error).message ?? error);
+      throw error;
+    }
   }
 
   /**
-   * Get apartment status
-   * @returns apartment status as JSON object
+   * Get apartment status.
+   * @returns Apartment status as a JSON object of type T.
    */
-  public async getApartmentStatus(): Promise<any> {
+  async getApartmentStatus<T = unknown>(): Promise<T> {
     this.log.debug('Getting apartment status');
-    const params: URLSearchParams = new URLSearchParams();
-    params.set('includeAll', 'true');
-    const json = await this.getApiRequest('/api/v1/apartment/status', params);
-    return json?.data;
+    try {
+      const response = await this.axios.get<ApiResponse<T>>('/api/v1/apartment/status', {
+        params: { includeAll: 'true' },
+      });
+      return (response.data as { data: T }).data;
+    } catch (error: unknown) {
+      this.log.error('Failed to get apartment status:', (error as Error).message ?? error);
+      throw error;
+    }
   }
-
+  
   /**
-   * Invoke standard device scenario turnOn
-   * @param dsuid id of device as string
+   * Turn on a device (POST scenario).
+   * @param dsuid The device unique ID.
+   * @returns The response data of type T.
    */
-  public async turnOnDevice(dsuid: string): Promise<any> {
+  async turnOnDevice<T = unknown>(dsuid: string): Promise<T> {
     this.log.debug(`TurnOn device: ${dsuid}`);
-    const emptyBody = JSON.parse('{}');
-    this.postApiRequest(`/api/v1/apartment/scenarios/device-${dsuid}-std.turnOn/invoke`, emptyBody);
+    const url = `/api/v1/apartment/scenarios/device-${dsuid}-std.turnOn/invoke`;
+    const emptyBody = {};
+    return this.postApiRequest<T>(url, emptyBody);
   }
 
   /**
-   * Invoke standard device scenario turnOff
-   * @param dsuid id of device as string
+   * Turn off a device (POST scenario).
+   * @param dsuid The device unique ID.
+   * @returns The response data of type T.
    */
-  public async turnOffDevice(dsuid: string): Promise<any> {
+  async turnOffDevice<T = unknown>(dsuid: string): Promise<T> {
     this.log.debug(`TurnOff device: ${dsuid}`);
-    const emptyBody = JSON.parse('{}');
-    this.postApiRequest(`/api/v1/apartment/scenarios/device-${dsuid}-std.turnOff/invoke`, emptyBody);
+    const url = `/api/v1/apartment/scenarios/device-${dsuid}-std.turnOff/invoke`;
+    const emptyBody = {};
+    return this.postApiRequest<T>(url, emptyBody);
   }
 
   /**
-   * Setting output value of device
-   * @param dsuid id of device as string
-   * @param functionBlockId as string
-   * @param outputId as string
-   * @param value as CharacteristicValue
+   * Set device output value (PATCH).
+   * @param dsuid The device unique ID.
+   * @param functionBlockId The function block ID.
+   * @param outputId The output ID.
+   * @param value The value to set.
+   * @returns The response data of type T.
    */
-  public async setDeviceOutputValue(dsuid: string, functionBlockId: string, outputId: string, value: CharacteristicValue): Promise<any> {
+  async setDeviceOutputValue<T = unknown>(
+    dsuid: string,
+    functionBlockId: string,
+    outputId: string,
+    value: CharacteristicValue,
+  ): Promise<T> {
     this.log.debug(`Set ${outputId} to ${value} for ${dsuid}`);
-    const data: patchBody[] = [
+    const url = `/api/v1/apartment/dsDevices/${dsuid}/status`;
+    const data = [
       {
         op: 'replace',
         path: `/functionBlocks/${functionBlockId}/outputs/${outputId}/value`,
         value: value,
       },
     ];
-    this.patchApiRequest(`/api/v1/apartment/dsDevices/${dsuid}/status`, data);
-  }
-
-  /**
-   * Generic API get request
-   * @param url path as string
-   * @param params search params as URLSearchParams object
-   * @returns JSON response
-   */
-  private async getApiRequest(url: string, params: URLSearchParams) {
-    const emptyBody = JSON.parse('{}');
-    const response = await this.dssApiRequest('GET', url, emptyBody, params);
-    return response;
-  }
-
-  /**
-   * Generic API post request
-   * @param url path as string
-   * @param data request body as JSON object
-   */
-  private async postApiRequest (url: string, data: JSON) {
-    const params: URLSearchParams = new URLSearchParams();
-    this.dssApiRequest('POST', url, data, params);
-  }
-
-  /**
-   * Generic API patch request
-   * @param url path as string
-   * @param data request body as 
-   */
-  private async patchApiRequest(url: string, data: patchBody[]) {
-    const params: URLSearchParams = new URLSearchParams();
-    this.dssApiRequest('PATCH', url, data, params);
-  }
-
-  /**
-   * dSS API request
-   * @param method request method
-   * @param url path as string
-   * @param data request body as JSON object
-   * @param params search params as URLSearchParams object
-   * @returns JSON object
-   */
-  private async dssApiRequest(method: Method, url: string, data: any, params: URLSearchParams): Promise<any> {
-
-    this.log.debug(`GET request ${url}]`);
-
-    try {
-      const response = await this.axiosInstance({
-        method: method,
-        url: url,
-        data: data,
-        params: params,
-      });
-      
-      if (response && response.status === 200) {
-        this.log.debug(`[Response of ${method}: ${url}] ${JSON.stringify(response.data)}`);
-        return response.data;
-      } else if (response && response.status === 204) {
-        this.log.debug(`[Status ${response.status}] for ${method}: ${url}`);
-        return;
-      } else if (response) {
-        this.log.debug(`Status ${response.status} - ${response.data.message}`);
-      } else {
-        this.log.debug('No response received');
-      }
-    } catch (error) {
-      if (error.response && error.response.status === 401) {
-        // 401 Unauthorized
-        this.log.error('[ERROR 401]: Unauthorized - Check your dSS AppToken');
-      } else if (error.request) {
-        // The request was made but no response was received
-        // `error.request` is an instance of http.ClientRequest in node.js
-        this.log.error(error.request);
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        this.log.error('A request error occurred:', error.message);
-      }
-    }
+    return this.patchApiRequest<T>(url, data);
   }
 }

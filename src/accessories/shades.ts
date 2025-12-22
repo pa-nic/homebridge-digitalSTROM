@@ -1,87 +1,81 @@
-import { Service, CharacteristicValue } from 'homebridge';
-import { dssAccessory } from './base';
+import type { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
+import type { DigitalStromPlatform } from '../platform.js';
+import type { AccessoryHandler, ApartmentStatus, DeviceStatus, OutputStatus } from '../digitalStromTypes.js';
+
 
 /**
- * An instance of this class is created for each digitalStrom light accessory your platform registers
- * Each accessory may expose multiple services of different service types.
+ * Represents a Homebridge accessory for a digitalSTROM shade/blind device.
+ * Handles position, state, and communication with the digitalSTROM API.
  */
-export class ShadeAccessory extends dssAccessory {
-  private service!: Service;  
-  private currentPosition = 0 as number;
-  private targetPosition = 0 as number;
-  private positionState = 'ok' as string;
+export class ShadePlatformAccessory implements AccessoryHandler {
+  /** The Homebridge WindowCovering service */
+  private service: Service;
+  /** Cached current position (0-100) */
+  private currentPosition = 0;
+  /** Cached target position (0-100) */
+  private targetPosition = 0;
+  /** Cached position state ('ok' or 'moving') */
+  private positionState = 'ok';
 
-  protected configureDevice(): void {
-    const device = this.accessory.context.device;
-
+  /**
+   * Constructs a new ShadePlatformAccessory.
+   * @param platform The DigitalStromPlatform instance.
+   * @param accessory The Homebridge PlatformAccessory instance.
+   */
+  constructor(
+    private readonly platform: DigitalStromPlatform,
+    private readonly accessory: PlatformAccessory,
+  ) {
     // Set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'digitalStrom')
-      .setCharacteristic(this.platform.Characteristic.Model, 'device.attributes.technicalName')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'device.id');
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'DigitalSTROM')
+      .setCharacteristic(this.platform.Characteristic.Model, this.accessory.context.device.attributes?.technicalName || 'Shade')
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.device.id);
 
-    // Get the LightBulb service if it exists, otherwise create a new LightBulb service
-    this.service = this.accessory.getService(this.platform.Service.WindowCovering) 
+    // Get the WindowCovering service if it exists, otherwise create a new one
+    this.service = this.accessory.getService(this.platform.Service.WindowCovering)
       || this.accessory.addService(this.platform.Service.WindowCovering);
 
-    // Set the service name, this is what is displayed as the default name on the Home app
-    // We are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, device.attributes.name);   
+    // Set the service name
+    this.service.setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
 
-    // Register required handlers for the Window Covering
+    // Register handlers for the CurrentPosition Characteristic
     this.service.getCharacteristic(this.platform.Characteristic.CurrentPosition)
       .onGet(this.getCurrentPosition.bind(this));
 
+    // Register handlers for the PositionState Characteristic
     this.service.getCharacteristic(this.platform.Characteristic.PositionState)
       .onGet(this.getPositionState.bind(this));
 
+    // Register handlers for the TargetPosition Characteristic
     this.service.getCharacteristic(this.platform.Characteristic.TargetPosition)
-      .onGet(this.getTargetPosition.bind(this))
-      .onSet(this.setTargetPosition.bind(this));
+      .onSet(this.setTargetPosition.bind(this))
+      .onGet(this.getTargetPosition.bind(this));
+
+    this.platform.log.debug('ShadePlatformAccessory created for:', this.accessory.displayName);
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory
-   */
-  async setTargetPosition(value: CharacteristicValue) {
-    const id = this.accessory.context.device.id;
-    this.platform.dsAPI.setDeviceOutputValue(id, id, 'shadePositionOutside', value);
-    this.platform.log.info(`${this.accessory.context.device.attributes.name} target Position -> ${value}`);
-  }
 
   /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory
-   *
-   * GET requests should return as fast as possbile. A long delay here will result in
-   * HomeKit being unresponsive and a bad user experience in general.
-   *
-   * If your device takes time to respond you should update the status of your device
-   * asynchronously instead using the `updateCharacteristic` method instead.
-   * @example
-   * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
-   * 
-   * If you need to return an error to show the device as "Not Responding" in the Home app:
-   * throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+   * Gets the current position of the shade.
+   * Called by Homebridge to query the current position.
+   * @returns The cached current position (0-100).
    */
   async getCurrentPosition(): Promise<CharacteristicValue> {
-
-    /* 
+    /*
      * Requesting the needed values from dSS slows down Homebridge.
      * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
      */
-
     return this.currentPosition;
   }
 
-  async getPositionState(): Promise<CharacteristicValue> {
-  
-    /* 
-     * Requesting the needed values from dSS slows down Homebridge.
-     * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
-     */
 
+  /**
+   * Gets the current position state of the shade.
+   * Called by Homebridge to query the movement state.
+   * @returns The Homebridge PositionState (INCREASING, DECREASING, or STOPPED).
+   */
+  async getPositionState(): Promise<CharacteristicValue> {
     if (this.positionState === 'moving') {
       if (this.targetPosition > this.currentPosition) {
         return this.platform.Characteristic.PositionState.INCREASING;
@@ -93,35 +87,70 @@ export class ShadeAccessory extends dssAccessory {
     }
   }
 
-  async getTargetPosition(): Promise<CharacteristicValue> {
+  /**
+   * Sets the target position of the shade.
+   * Called by Homebridge when the user changes the target position.
+   * @param value The new target position (0-100).
+   */
+  async setTargetPosition(value: CharacteristicValue) {
+    const deviceId: string = this.accessory.context.device.id;
+    const deviceName = this.accessory.context.device.attributes?.name;
+    
+    try {
+      await this.platform.dsAPI.setDeviceOutputValue(deviceId, deviceId, 'shadePositionOutside', value);
+      this.platform.log.info(`${deviceName} shade Position -> ${value}`);
+    } catch (error) {
+      this.platform.log.error(`Failed to set target position for shade ${deviceName}:`, error);
+      throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    }
+  }
 
-    /* 
+
+  /**
+   * Gets the target position of the shade.
+   * Called by Homebridge to query the target position.
+   * @returns The cached target position (0-100).
+   */
+  async getTargetPosition(): Promise<CharacteristicValue> {
+    /*
      * Requesting the needed values from dSS slows down Homebridge.
      * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
      */
-
     return this.targetPosition;
   }
 
-  public updateState(apartmentStatus) {
+  /**
+   * Updates the accessory state from the latest apartment status.
+   * Called by the platform when apartment status changes.
+   * @param apartmentStatus The latest apartment status object.
+   */
+  public updateState(apartmentStatus: ApartmentStatus): void {
     this.platform.log.debug(`Update status of ${this.accessory.context.device.attributes.name}`);
 
-    const deviceStatus = apartmentStatus.included.dsDevices.find((d) => d.id === this.accessory.context.device.id);
+    const deviceId = this.accessory.context.device.id;
+    const deviceStatus = apartmentStatus?.included?.dsDevices?.find((d: DeviceStatus) => d.id === deviceId);
 
-    // Sometimes output status is not availabe (i.e. during dSS maintenance tasks)
+    // Sometimes output status is not availabe (i.e. during DSS maintenance tasks)
     // Only trigger update if new status is available
-    if (deviceStatus.attributes.functionBlocks[0].outputs) {
-      const deviceOutputShadePosition = deviceStatus.attributes.functionBlocks[0].outputs.find((o) => o.id === 'shadePositionOutside');
-      
-      this.positionState = deviceOutputShadePosition.status;
+    if (!deviceStatus?.attributes?.functionBlocks?.[0]?.outputs) {
+      this.platform.log.debug(`No output status available for ${this.accessory.context.device.attributes?.name}`);
+      return;
+    }
+    
+    const shadePositionOutput = deviceStatus.attributes.functionBlocks[0].outputs.find(
+      (o: OutputStatus) => o.id === 'shadePositionOutside',
+    );
+
+    if (shadePositionOutput) {
+      this.positionState = shadePositionOutput.status ?? 'ok';
 
       if (this.positionState === 'moving') {
-        this.currentPosition = Math.round(deviceOutputShadePosition.initialValue);
+        this.currentPosition = Math.round(shadePositionOutput.initialValue ?? 0);
       } else {
-        this.currentPosition = Math.round(deviceOutputShadePosition.value);
+        this.currentPosition = Math.round(shadePositionOutput.value ?? 0);
       }   
 
-      this.targetPosition = Math.round(deviceOutputShadePosition.targetValue);
+      this.targetPosition = Math.round(shadePositionOutput.targetValue ?? 0);
 
       // Update Characteristics.CurrentPosition
       this.service.updateCharacteristic(this.platform.Characteristic.CurrentPosition, this.currentPosition);
@@ -143,5 +172,4 @@ export class ShadeAccessory extends dssAccessory {
       }
     }
   }
-    
 }
