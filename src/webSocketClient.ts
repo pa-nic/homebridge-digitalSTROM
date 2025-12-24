@@ -25,9 +25,9 @@ export default class WebSocketClient {
   /** Current retry count for reconnection */
   private retryCount = 0;
   /** Maximum number of reconnection attempts */
-  private readonly maxRetries = 10;
-  private readonly BASE_RETRY_DELAY = 1000; // 1 second
-  private readonly MAX_RETRY_DELAY = 30000; // 30 seconds
+  private readonly maxRetries = 100;
+  private readonly BASE_RETRY_DELAY = 1000; // 1 seconds
+  private readonly MAX_RETRY_DELAY = 60000; // 60 seconds
   /** Heartbeat interval in milliseconds */
   private readonly HEARTBEAT_INTERVAL = 120 * 1000;
   /** Ping timeout in milliseconds */
