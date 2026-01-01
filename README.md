@@ -28,37 +28,8 @@ You are currently able to directly control the following functions/devices:
 
 Limitations: There is currently no way to automatically assign devices to floors, rooms, groups in HomeKit. So this has to be done manually within HomeKit.
 
-## Setup
+## Install instructions
 
-### DSS
-
-To grant this Homebridge plugin access to your digitalSTROM environment you first need to register and enable an applicationToken in your digitalSTROM server (dSS).
- 
-https://dss.local:8080/json/system/requestApplicationToken?applicationName=Homebridge
-
-Open the above link in your browser and note down the returned applicationToken.
-You might need to replace `dss.local` with the IP of your dSS. You can also change the applicationName (`Homebridge`) to something else.
-
-````
-{"result":{"applicationToken":"2dfcc0a85r22a39b0c317c1d27b287cc0a6fc714kfw012d9a4d557f3b36efbf13"},"ok":true}
-`````
-
-If you've received an applicationToken like in the example above, access the web interface of your dSS, enable *Advanced View* (at the bottom right corner), open the *System* tab and browse to *Accesss rights*.
-
-There you need to check the checkbox next to your just registered token and apply the changes.
-
-### Homebridge
-
-Install the plugin and open its settings page. 
-
-Enter the `IP` of your digitalSTROM server and your `applicationToken`
-
-**Optional:** Enter the `SHA-256 fingerprint` of your dSS server certificate to enable certificate validation (see [WiKi](https://github.com/pa-nic/homebridge-digitalSTROM/wiki/Certificate-validation) for details)
-
-<p align="center">
-
-<img src="https://github.com/pa-nic/homebridge-digitalSTROM/blob/main/images/settings.png" width="480">
-
-</p>
+See [Wiki](https://github.com/pa-nic/homebridge-digitalSTROM/wiki/wiki)
 
 <p align="center" style="margin-top:20px">And that's just about it!</p>
