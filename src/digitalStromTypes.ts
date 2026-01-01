@@ -5,6 +5,7 @@ export interface ApiResponse<T> {
   };
 }
 
+// Plugin options
 export interface PluginOptions {
   dssip: string;
   token: string;
@@ -12,12 +13,14 @@ export interface PluginOptions {
   disableCertificateValidation?: boolean;
 }
 
-// Interface for accessory handlers that support state updates.
+// Accessory handler interface
 export interface AccessoryHandler {
   updateState(apartmentStatus: ApartmentStatus): void;
 }
 
-// Enums from API schema and digitalSTROM documentation
+// ===== Enums and Type Aliases =====
+
+// Output
 type OutputType =
   | 'lightBrightness'
   | 'lightHue'
@@ -50,6 +53,7 @@ type OutputType =
 type OutputFunction = 'switched' | 'gradual' | 'positional' | 'internal' | string;
 type OutputMode = 'disabled' | 'switched' | 'gradual' | 'positional' | 'internal' | string;
 
+// Button
 type ButtonType =
   | 'device'
   | 'area1'
@@ -72,6 +76,7 @@ type ButtonType =
 
 type ButtonMode = 'disabled' | 'button1way' | 'button2way' | string;
 
+// Sensor
 type MeasurementType =
   | 'temperature'
   | 'brightness'
@@ -92,6 +97,7 @@ type MeasurementUsage =
   | 'deviceAverage'
   | string;
 
+// Status
 type OutputStatusStatus =
   | 'ok'
   | 'moving'
@@ -103,11 +109,12 @@ type OutputStatusStatus =
   | string;
 
 type SensorStatusStatus = 'ok' | 'error' | string;
-
 type ShadesStatusStatus = 'closed' | 'open' | 'moving' | 'mixed' | string;
-
 type UserDefinedStateStatusStatus = 'active' | 'inactive' | 'undefined' | string;
 
+// ===== Core Entities =====
+
+// Output
 export interface Output {
   id: string;
   attributes?: {
@@ -124,6 +131,7 @@ export interface Output {
   };
 }
 
+// Button
 export interface Button {
   id: string;
   attributes?: {
@@ -135,6 +143,7 @@ export interface Button {
   };
 }
 
+// Sensor
 export interface Sensor {
   id: string;
   attributes?: {
@@ -148,12 +157,7 @@ export interface Sensor {
   };
 }
 
-export interface SensorStatus {
-  id: string;
-  status?: SensorStatusStatus;
-  value?: number;
-}
-
+// Function Block
 export interface FunctionBlock {
   id: string;
   type: 'functionBlock' | string;
@@ -170,17 +174,94 @@ export interface FunctionBlock {
   };
 }
 
-// Extend ApartmentStatus.included to match API (zones, clusters, userDefinedStates)
-export interface ApartmentStatus {
-  included?: {
-    dsDevices?: DeviceStatus[];
-    zones?: ZoneStatus[];
-    clusters?: ClusterStatus[];
-    userDefinedStates?: UserDefinedStateStatus[];
+// Submodule
+export interface Submodule {
+  id: string;
+  type: 'submodule' | string;
+  lastChanged?: string;
+  attributes?: {
+    name?: string;
+    technicalName?: string;
+    deviceAdapter?: string;
   };
 }
 
-// Minimal ZoneStatus placeholder used by shades.ts (applications.shades.*)
+// dsDevice
+export interface DsDevice {
+  id: string;
+  type: 'dsDevice' | string;
+  lastChanged?: string;
+  attributes?: {
+    name?: string;
+    serialNumber?: string;
+    macAddress?: string;
+    model?: string;
+    firmwareVersion?: string;
+    functionBlocks?: FunctionBlock[];
+    submodules?: string[]; // Array of submodule IDs
+  };
+}
+
+// Zone
+export interface Zone {
+  id: string;
+  type: 'zone' | string;
+  lastChanged?: string;
+  attributes?: {
+    name?: string;
+    floor?: string;
+    orderId?: number;
+    submodules?: string[];
+    applications?: string[];
+    applicationTypes?: string[];
+    applicationDetails?: Array<{
+      id: string;
+      areas: Array<{
+        id: string;
+        name: string;
+      }>;
+    }>;
+  };
+}
+
+// ===== Status Entities =====
+
+// Output Status
+export interface OutputStatus {
+  id: string;
+  targetValue: number;
+  value: number;
+  status?: OutputStatusStatus;
+  initialValue?: number;
+  startedAt?: string;
+  terminatesAt?: string;
+  level?: number;
+}
+
+// Sensor Status
+export interface SensorStatus {
+  id: string;
+  status?: SensorStatusStatus;
+  value?: number;
+}
+
+// Function Block Status
+export interface FunctionBlockStatus {
+  id: string;
+  outputs?: OutputStatus[];
+  sensorInputs?: SensorStatus[];
+}
+
+// Device Status
+export interface DeviceStatus {
+  id: string;
+  attributes?: {
+    functionBlocks?: FunctionBlockStatus[];
+    name?: string;
+  };
+}
+
+// Zone Status
 export interface ZoneStatus {
   id: string;
   attributes?: {
@@ -196,7 +277,7 @@ export interface ZoneStatus {
   };
 }
 
-// Minimal ClusterStatus/UserDefinedStateStatus placeholders for type completeness
+// Cluster Status
 export interface ClusterStatus {
   id: string;
   attributes?: {
@@ -208,6 +289,7 @@ export interface ClusterStatus {
   };
 }
 
+// User Defined State Status
 export interface UserDefinedStateStatus {
   id: string;
   attributes?: {
@@ -215,32 +297,9 @@ export interface UserDefinedStateStatus {
   };
 }
 
-export interface DeviceStatus {
-  id: string;
-  attributes?: {
-    functionBlocks?: FunctionBlockStatus[];
-    name?: string;
-  };
-}
+// ===== Apartment & Status Root Entities =====
 
-export interface FunctionBlockStatus {
-  id: string;
-  outputs?: OutputStatus[];
-  sensorInputs?: SensorStatus[];
-}
-
-export interface OutputStatus {
-  id: string;
-  targetValue: number;
-  value: number;
-  status?: OutputStatusStatus;
-  initialValue?: number;
-  startedAt?: string;
-  terminatesAt?: string;
-  level?: number;
-}
-
-// Add Apartment type matching OpenAPI schema
+// Apartment
 export interface Apartment {
   id: string;
   type: 'apartment' | string;
@@ -263,10 +322,10 @@ export interface Apartment {
   };
   included?: {
     installation?: unknown; // Expand as needed
-    dsDevices?: unknown[]; // Expand as needed
-    submodules?: unknown[]; // Expand as needed
+    dsDevices?: DsDevice[];
+    submodules?: Submodule[];
     functionBlocks?: FunctionBlock[];
-    zones?: unknown[]; // Expand as needed
+    zones?: Zone[];
     scenarios?: unknown[]; // Expand as needed
     userDefinedStates?: unknown[]; // Expand as needed
     floors?: unknown[]; // Expand as needed
@@ -276,5 +335,15 @@ export interface Apartment {
     controllers?: unknown[];
     apiRevision?: unknown;
     meterings?: unknown[];
+  };
+}
+
+// Apartment Status
+export interface ApartmentStatus {
+  included?: {
+    dsDevices?: DeviceStatus[];
+    zones?: ZoneStatus[];
+    clusters?: ClusterStatus[];
+    userDefinedStates?: UserDefinedStateStatus[];
   };
 }
