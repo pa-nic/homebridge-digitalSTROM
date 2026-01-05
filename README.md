@@ -30,6 +30,6 @@ Limitations: There is currently no way to automatically assign devices to floors
 
 ## Install instructions
 
-See [Wiki](https://github.com/pa-nic/homebridge-digitalSTROM/wiki/wiki)
+See [Wiki](https://github.com/pa-nic/homebridge-digitalSTROM/wiki)
 
 <p align="center" style="margin-top:20px">And that's just about it!</p>
