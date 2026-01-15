@@ -145,11 +145,13 @@ export class LightPlatformAccessory implements AccessoryHandler {
     );
 
     if (brightnessOutput) {
-      this.targetValue = Math.round(brightnessOutput.targetValue);
+      const targetValue = brightnessOutput.targetValue;
+      this.targetValue = (typeof targetValue === 'number' && !isNaN(targetValue)) ? Math.round(targetValue) : 0;
       this.service.updateCharacteristic(this.platform.Characteristic.On, this.targetValue > 0);
 
       if (this.hasBrightness) {
-        this.brightness = Math.round(brightnessOutput.value);
+        const value = brightnessOutput.value;
+        this.brightness = (typeof value === 'number' && !isNaN(value)) ? Math.round(value) : 0;
         this.service.updateCharacteristic(this.platform.Characteristic.Brightness, this.brightness);
       }
     }
