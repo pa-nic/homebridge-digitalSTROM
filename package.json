@@ -2,7 +2,7 @@
   "name": "homebridge-digitalstrom-plugin",
   "displayName": "DigitalSTROM Plugin",
   "type": "module",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "description": "A Homebridge plugin for DigitalSTROM systems.",
   "author": {
     "name": "Patrick Probst",
