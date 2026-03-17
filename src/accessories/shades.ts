@@ -52,9 +52,12 @@ export class ShadePlatformAccessory implements AccessoryHandler {
       .onSet(this.setTargetPosition.bind(this))
       .onGet(this.getTargetPosition.bind(this));
 
+    // Register handler for HoldPosition (stop)
+    this.service.getCharacteristic(this.platform.Characteristic.HoldPosition)
+      .onSet(this.holdPosition.bind(this));
+
     this.platform.log.debug('ShadePlatformAccessory created for:', this.accessory.displayName);
   }
-
 
   /**
    * Gets the current position of the shade.
@@ -68,7 +71,6 @@ export class ShadePlatformAccessory implements AccessoryHandler {
      */
     return this.currentPosition;
   }
-
 
   /**
    * Gets the current position state of the shade.
@@ -97,14 +99,19 @@ export class ShadePlatformAccessory implements AccessoryHandler {
     const deviceName = this.accessory.context.device.attributes?.name;
     
     try {
-      await this.platform.dsAPI.setDeviceOutputValue(deviceId, deviceId, 'shadePositionOutside', value);
+      if (value === 100) {
+        await this.platform.dsAPI.invokeScenario({ context: 'applicationDevice', actionId: 'on', dsDevice: deviceId });
+      } else if (value === 0) {
+        await this.platform.dsAPI.invokeScenario({ context: 'applicationDevice', actionId: 'off', dsDevice: deviceId });
+      } else {
+        await this.platform.dsAPI.setDeviceOutputValue(deviceId, deviceId, 'shadePositionOutside', value);
+      }
       this.platform.log.info(`${deviceName} shade Position -> ${value}`);
     } catch (error) {
       this.platform.log.error(`Failed to set target position for shade ${deviceName}:`, error);
       throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
     }
   }
-
 
   /**
    * Gets the target position of the shade.
@@ -117,6 +124,27 @@ export class ShadePlatformAccessory implements AccessoryHandler {
      * Instead the cached value is returned and updates are handled by the updateState method on apartmentStatusChanged events.
      */
     return this.targetPosition;
+  }
+
+  /**
+   * Stops the shade movement.
+   * Called by Homebridge when the user triggers HoldPosition.
+   * @param value `true` when HomeKit requests a stop; some HAP clients also send a follow-up
+   *   `false` to reset the characteristic — that write is ignored to avoid a duplicate stop command.
+   */
+  async holdPosition(value: CharacteristicValue) {
+    if (!value) {
+      return;
+    }
+    const deviceId: string = this.accessory.context.device.id;
+    const deviceName = this.accessory.context.device.attributes?.name;
+    try {
+      await this.platform.dsAPI.invokeScenario({ context: 'applicationDevice', actionId: 'stop', dsDevice: deviceId });
+      this.platform.log.info(`${deviceName} shade stopped`);
+    } catch (error) {
+      this.platform.log.error(`Failed to stop shade ${deviceName}:`, error);
+      throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
+    }
   }
 
   /**

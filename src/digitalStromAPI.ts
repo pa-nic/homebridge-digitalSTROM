@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse } from './digitalStromTypes.js';
+import type { ApiResponse, InvokeScenarioBody } from './digitalStromTypes.js';
 import https from 'https';
 import crypto from 'crypto';
 import { TLSSocket } from 'tls';
@@ -110,10 +110,10 @@ export class digitalStromAPI {
   }
 
   /**
- * Retrieves the peer certificate from the DSS server.
- * @param validateFingerprint Optional fingerprint to validate against.
- * @returns Object containing certificate data and validation result.
- */
+   * Retrieves the peer certificate from the DSS server.
+   * @param validateFingerprint Optional fingerprint to validate against.
+   * @returns Object containing certificate data and validation result.
+   */
   private async retrieveCertificate(
     validateFingerprint?: string,
   ): Promise<{ pemCert: string; fingerprint: string; isValid: boolean }> {
@@ -180,8 +180,8 @@ export class digitalStromAPI {
   }
 
   /**
- * Validates certificate against stored fingerprint.
- */
+   * Validates certificate against stored fingerprint.
+   */
   private async validateCertificate(dssIP: string, fingerprint: string): Promise<string | null> {
     // Accept SHA256 fingerprint in hex, colon, dash, or space separated formats
     const cleanedFingerprint = fingerprint ? fingerprint.replace(/[\s:-]/g, '') : '';
@@ -229,8 +229,8 @@ export class digitalStromAPI {
   }
 
   /**
- * Gets certificate fingerprint without validation.
- */
+   * Gets certificate fingerprint without validation.
+   */
   async getCertificateFingerprint(): Promise<string | null> {
     try {
       const { fingerprint } = await this.retrieveCertificate();
@@ -325,27 +325,14 @@ export class digitalStromAPI {
   }
   
   /**
-   * Turn on a device (POST scenario).
-   * @param dsuid The device unique ID.
+   * Invoke a scenario via (POST).
+   * @param body One of the five scenario context payloads.
    * @returns The response data of type T.
    */
-  async turnOnDevice<T = unknown>(dsuid: string): Promise<T> {
-    this.log.debug(`TurnOn device: ${dsuid}`);
-    const url = `/api/v1/apartment/scenarios/device-${dsuid}-std.turnOn/invoke`;
-    const emptyBody = {};
-    return this.postApiRequest<T>(url, emptyBody);
-  }
-
-  /**
-   * Turn off a device (POST scenario).
-   * @param dsuid The device unique ID.
-   * @returns The response data of type T.
-   */
-  async turnOffDevice<T = unknown>(dsuid: string): Promise<T> {
-    this.log.debug(`TurnOff device: ${dsuid}`);
-    const url = `/api/v1/apartment/scenarios/device-${dsuid}-std.turnOff/invoke`;
-    const emptyBody = {};
-    return this.postApiRequest<T>(url, emptyBody);
+  async invokeScenario<T = unknown>(body: InvokeScenarioBody): Promise<T> {
+    this.log.debug('Invoking scenario:', JSON.stringify(body));
+    const url = '/api/v1/apartment/scenarios/invoke';
+    return this.postApiRequest<T>(url, body);
   }
 
   /**

@@ -72,10 +72,10 @@ export class LightPlatformAccessory implements AccessoryHandler {
     
     try {
       if (value as boolean) {
-        await this.platform.dsAPI.turnOnDevice(deviceId);
+        await this.platform.dsAPI.invokeScenario({ context: 'applicationDevice', actionId: 'on', dsDevice: deviceId });
         this.platform.log.info(`${deviceName} → On`);
       } else {
-        await this.platform.dsAPI.turnOffDevice(deviceId);
+        await this.platform.dsAPI.invokeScenario({ context: 'applicationDevice', actionId: 'off', dsDevice: deviceId });
         this.platform.log.info(`${deviceName} → Off`);
       }
     } catch (error) {
@@ -104,7 +104,13 @@ export class LightPlatformAccessory implements AccessoryHandler {
     const deviceName = this.accessory.context.device.attributes?.name;
     
     try {
-      await this.platform.dsAPI.setDeviceOutputValue(deviceId, deviceId, 'brightness', value);
+      if (value === 100) {
+        await this.platform.dsAPI.invokeScenario({ context: 'applicationDevice', actionId: 'on', dsDevice: deviceId });
+      } else if (value === 0) {
+        await this.platform.dsAPI.invokeScenario({ context: 'applicationDevice', actionId: 'off', dsDevice: deviceId });
+      } else {
+        await this.platform.dsAPI.setDeviceOutputValue(deviceId, deviceId, 'brightness', value);
+      }
       this.platform.log.info(`${deviceName} brightness → ${value}`);
     } catch (error) {
       this.platform.log.error(`Failed to set brightness for ${deviceName}:`, error);

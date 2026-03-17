@@ -347,3 +347,55 @@ export interface ApartmentStatus {
     userDefinedStates?: UserDefinedStateStatus[];
   };
 }
+
+// ===== Scenario Invoke =====
+
+export type ScenarioApplication = 'lights' | 'shades' | 'awnings' | 'audio' | 'video' | 'ventilation' | 'recirculation';
+
+export type DeviceActionId = 'off' | 'on' | 'localOff' | 'localOn' | 'stop' | 'impulse' | 'inc' | 'dec';
+
+/** Whole apartment — application action (e.g. lights off) or system action (e.g. absent, no application) */
+export interface InvokeApartmentScenarioBody {
+  context: 'applicationApartment';
+  actionId: string;
+  application?: ScenarioApplication;
+}
+
+/** Single zone */
+export interface InvokeZoneScenarioBody {
+  context: 'applicationZone';
+  actionId: string;
+  application: ScenarioApplication;
+  zone: string;
+}
+
+/** Area 1–4 within a zone (lights or shades only) */
+export interface InvokeAreaScenarioBody {
+  context: 'applicationArea';
+  actionId: string;
+  application: 'lights' | 'shades';
+  zone: string;
+  area: '1' | '2' | '3' | '4';
+}
+
+/** Single device — only DeviceActionId values allowed, no application or zone */
+export interface InvokeDeviceScenarioBody {
+  context: 'applicationDevice';
+  actionId: DeviceActionId;
+  dsDevice: string;
+}
+
+/** Named cluster of devices */
+export interface InvokeClusterScenarioBody {
+  context: 'applicationCluster';
+  actionId: string;
+  application: ScenarioApplication;
+  cluster: string;
+}
+
+export type InvokeScenarioBody =
+  | InvokeApartmentScenarioBody
+  | InvokeZoneScenarioBody
+  | InvokeAreaScenarioBody
+  | InvokeDeviceScenarioBody
+  | InvokeClusterScenarioBody;
