@@ -28,8 +28,68 @@ You are currently able to directly control the following functions/devices:
 
 Limitations: There is currently no way to automatically assign devices to floors, rooms, groups in HomeKit. So this has to be done manually within HomeKit.
 
-## Install instructions
+# Install instructions
 
-See [Wiki](https://github.com/pa-nic/homebridge-digitalSTROM/wiki/Installation)
+To use the digitalStrom plugin you need to configure your digitalStrom server (dSS) and the Homebridge plugin as follows:
+
+## Setup dSS
+
+Grant the plugin access to your digitalSTROM environment, by registering and enabling an applicationToken in your digitalSTROM server (dSS).
+ 
+https://dss.local:8080/json/system/requestApplicationToken?applicationName=Homebridge
+
+Open the above link in your browser and **note down the returned applicationToken**.
+You might need to replace `dss.local` with the IP of your dSS. You can also change the applicationName (`Homebridge`) to something else.
+
+````
+{"result":{"applicationToken":"2dfcc0a85r22a39d0c317c8d27b287cc0a6fc714kfw012d9a4d557f3b24efaf13"},"ok":true}
+`````
+
+If you've received an applicationToken like in the example above, access the web interface of your dSS, enable *Advanced View* (at the bottom right corner), open the *System* tab and browse to *Accesss rights*.
+
+Enable the checkbox next to your just registered token and apply the changes. **You've now successfully granted access rights to your dSS for this token**.
+
+## Setup Homebridge plugin
+
+Install the plugin and open its settings page. 
+
+Enter the `IP` of your digitalSTROM server and your `applicationToken`
+
+<p align="center">
+<img width="480" src="https://github.com/user-attachments/assets/61ca60bf-8d87-49d8-bc53-95c1809c5e91" />
+</p>
+
+> [!WARNING]
+> You could now disable the certificate validation by enabling the checkbox (**not recommended**), save the settings and you're done.
+
+To add an extra layer of security you need to enter the dSS certificate fingerprint.
+Save the settings as they are and restart your homebridge.
+
+During start-up the plugin tries to retrieve the certificate fingerprint and present it to you in the Homebridge **logs**;
+
+```
+[digitalSTROM] ================================================================================
+[digitalSTROM] # SAVE YOUR DSS CERTIFICATE FINGERPRINT TO YOUR DSS PLUGIN CONFIG:
+[digitalSTROM] #
+[digitalSTROM] # Fingerprint: 7274bad7a7f9e82ddc2f7d417050f84147dbc6b2e76344ddad53dc4bcbf9265b
+[digitalSTROM] #
+[digitalSTROM] ================================================================================
+[digitalSTROM] Fingerprint not configured yet, disabling plugin.
+```
+
+Copy & paste the fingerprint into your plugin settings.
+
+<p align="center">
+<img width="480" src="https://github.com/user-attachments/assets/0db49f82-8bc0-4d82-acbd-53a41f17ed4d" />
+</p>
+
+Save, restart your Homebridge and you're set and done.
+
+> [!WARNING]
+> If you do not want to set the fingerprint, disable the validation check! Otherwise the plugin won't start.
+
+
+> [!TIP]
+> You can get the certificate fingerprint also manually via your browser as described [here](https://github.com/pa-nic/homebridge-digitalSTROM/wiki/Get-fingerprint-(manually))
 
 <p align="center" style="margin-top:20px">And that's just about it!</p>
