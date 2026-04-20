@@ -12,7 +12,7 @@
   "homepage": "https://github.com/pa-nic/homebridge-digitalSTROM#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pa-nic/homebridge-digitalSTROM.git"
+    "url": "git+https://github.com/pa-nic/homebridge-digitalSTROM.git"
   },
   "bugs": {
     "url": "https://github.com/pa-nic/homebridge-digitalSTROM/issues"
