@@ -238,9 +238,7 @@ export default class WebSocketClient {
   private handleMessage(msg: string): void {
     try {
       msg = msg.replace('\u001e', '');
-      const separatorIndex = msg.indexOf(';');
-      const command = separatorIndex === -1 ? msg : msg.substring(0, separatorIndex);
-      const payload = separatorIndex === -1 ? undefined : msg.substring(separatorIndex + 1);
+      const [command, payload] = msg.split(';');
       this.log.debug('Received message: ' + JSON.stringify({ command, payload }));
       this.listeners.forEach((listener) => listener.callback({ command, payload }));
     } catch (err) {
