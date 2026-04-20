@@ -56,14 +56,16 @@ export class digitalStromAPI {
     });
 
     // Add request interceptor to include token
-    this.axios.interceptors.request.use((config) => {
-      if (config.params) {
-        config.params.token = this.token;
-      } else {
-        config.params = { token: this.token };
-      }
-      return config;
-    });
+    // Not needed for new API paths as we set the Authorization header globally, 
+    // but left here for reference if needed for query params in the future
+    // this.axios.interceptors.request.use((config) => {
+    //   if (config.params) {
+    //     config.params.token = this.token;
+    //   } else {
+    //     config.params = { token: this.token };
+    //   }
+    //   return config;
+    // });
 
     // Add response interceptor for error handling
     this.axios.interceptors.response.use(
@@ -265,7 +267,7 @@ export class digitalStromAPI {
   async postApiRequest<T = unknown>(url: string, data: unknown): Promise<T> {
     try {
       const response = await this.axios.post<ApiResponse<T>>(url, data);
-      return (response.data as { data: T }).data;
+      return response.data.data;
     } catch (error: unknown) {
       this.log.error(`POST request failed for ${url}:`, (error as Error).message ?? error);
       throw error;
@@ -281,7 +283,7 @@ export class digitalStromAPI {
   async patchApiRequest<T = unknown>(url: string, data: unknown): Promise<T> {
     try {
       const response = await this.axios.patch<ApiResponse<T>>(url, data);
-      return (response.data as { data: T }).data;
+      return response.data.data;
     } catch (error: unknown) {
       this.log.error(`PATCH request failed for ${url}:`, (error as Error).message ?? error);
       throw error;
@@ -298,7 +300,7 @@ export class digitalStromAPI {
       const response = await this.axios.get<ApiResponse<T>>('/api/v1/apartment/', {
         params: { includeAll: 'true' },
       });
-      return (response.data as { data: T }).data;
+      return response.data.data;
     } catch (error: unknown) {
       this.log.error('Failed to get apartment:', (error as Error).message ?? error);
       throw error;
@@ -315,7 +317,7 @@ export class digitalStromAPI {
       const response = await this.axios.get<ApiResponse<T>>('/api/v1/apartment/status', {
         params: { includeAll: 'true' },
       });
-      return (response.data as { data: T }).data;
+      return response.data.data;
     } catch (error: unknown) {
       this.log.error('Failed to get apartment status:', (error as Error).message ?? error);
       throw error;
@@ -332,7 +334,7 @@ export class digitalStromAPI {
       const response = await this.axios.get<ApiResponse<T>>('/api/v1/apartment/meterings/values', {
         params: { includeAll: 'true' },
       });
-      return (response.data as { data: T }).data;
+      return response.data.data;
     } catch (error: unknown) {
       this.log.error('Failed to get meterings values:', (error as Error).message ?? error);
       throw error;

@@ -21,7 +21,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
 
   /** Tracks restored cached accessories */
   public readonly accessories: Map<string, PlatformAccessory> = new Map();
-  public readonly discoveredCacheUUIDs: string[] = [];
+  public readonly discoveredCacheUUIDs: Set<string> = new Set();
 
   /**
    * Stores runtime handler instances for each accessory.
@@ -172,6 +172,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
    * Accessories must only be registered once; previously created accessories must not be registered again.
    */
   async discoverDevices() {
+    this.discoveredCacheUUIDs.clear();
     try {
       // Test connection first
       this.log.info('Testing connection to digitalSTROM server...');
@@ -253,7 +254,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
         }
 
         // push into discoveredCacheUUIDs
-        this.discoveredCacheUUIDs.push(uuid);
+        this.discoveredCacheUUIDs.add(uuid);
       }
 
       this.log.info('Device discovery completed');
@@ -282,7 +283,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
           this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
         }
 
-        this.discoveredCacheUUIDs.push(uuid);
+        this.discoveredCacheUUIDs.add(uuid);
       }
 
       this.log.info('Apartment scenes registered');
@@ -292,7 +293,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
 
     // Remove accessories from cache that are no longer present
     for (const [uuid, accessory] of this.accessories) {
-      if (!this.discoveredCacheUUIDs.includes(uuid)) {
+      if (!this.discoveredCacheUUIDs.has(uuid)) {
         this.log.info('Removing existing accessory from cache:', accessory.displayName);
         this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
       }

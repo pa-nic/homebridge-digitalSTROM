@@ -15,7 +15,7 @@ export class ShadePlatformAccessory implements AccessoryHandler {
   /** Cached target position (0-100) */
   private targetPosition = 0;
   /** Cached position state ('ok' or 'moving') */
-  private positionState = 'ok';
+  private positionState: 'ok' | 'moving' | string = 'ok';
 
   /**
    * Constructs a new ShadePlatformAccessory.
@@ -170,7 +170,8 @@ export class ShadePlatformAccessory implements AccessoryHandler {
     );
 
     if (shadePositionOutput) {
-      this.positionState = shadePositionOutput.status ?? 'ok';
+      const rawStatus = shadePositionOutput.status ?? 'ok';
+      this.positionState = rawStatus === 'moving' ? 'moving' : 'ok';
 
       if (this.positionState === 'moving') {
         this.currentPosition = Math.round(shadePositionOutput.initialValue ?? 0);

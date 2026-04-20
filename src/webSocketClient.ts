@@ -20,6 +20,10 @@ export default class WebSocketClient {
   private listeners: Array<{id: string; callback: (msg: { command: string; payload?: string }) => unknown}> = [];
   /** Whether a connection attempt is in progress */
   private isConnecting = false;
+  /** Whether the client has been intentionally shut down */
+  private isShuttingDown = false;
+  /** Sends queued while a connection attempt is in progress */
+  private pendingSends: Array<() => void> = [];
   /** Heartbeat interval timer */
   private heartbeatInterval: NodeJS.Timeout | null = null;
   /** Current retry count for reconnection */
@@ -89,7 +93,9 @@ export default class WebSocketClient {
         this.connection?.close();
         this.connection = null; // clear stale connection
         this.client = null; // clear stale client
-        setTimeout(() => this.connect(), 1000);
+        if (!this.isShuttingDown) {
+          setTimeout(() => this.connect(), 1000);
+        }
       });
 
       this.connection.on('close', () => {
@@ -105,7 +111,9 @@ export default class WebSocketClient {
         if (callback) {
           callback(new Error('Connection closed by server'));
         }
-        this.connect();
+        if (!this.isShuttingDown) {
+          this.connect();
+        }
       });
 
       this.connection.on('pong', () => {
@@ -134,13 +142,19 @@ export default class WebSocketClient {
         } catch (err) {
           this.log.error('Heartbeat failed, reconnecting...');
           this.connection?.close();
-          this.connect();
+          if (!this.isShuttingDown) {
+            this.connect();
+          }
         }
       }, this.HEARTBEAT_INTERVAL);
 
       if (callback) {
         callback();
       }
+
+      // Flush any sends that were queued while connecting
+      const pending = this.pendingSends.splice(0);
+      pending.forEach(fn => fn());
     });
 
     this.client.on('connectFailed', (err: Error) => {
@@ -159,7 +173,9 @@ export default class WebSocketClient {
       );
       
       this.log.debug(`Retrying in ${delay}ms...`);
-      setTimeout(() => this.connect(), delay);
+      if (!this.isShuttingDown) {
+        setTimeout(() => this.connect(), delay);
+      }
     });
 
     this.log.debug('Connecting to WebSocket Server...');
@@ -172,6 +188,7 @@ export default class WebSocketClient {
    * Closes the WebSocket connection and clears heartbeat intervals.
    */
   public close(): void {
+    this.isShuttingDown = true;
     try {
       // Clear the heartbeat interval when explicitly closing the connection
       if (this.heartbeatInterval) {
@@ -183,6 +200,12 @@ export default class WebSocketClient {
       this.connection?.close();
       this.connection = null; // clear reference
       this.client = null; // clear reference
+
+      // Reject any sends that were queued while connecting
+      const pending = this.pendingSends.splice(0);
+      if (pending.length > 0) {
+        this.log.debug(`Discarding ${pending.length} pending send(s) on shutdown`);
+      }
     } catch (err) {
       this.log.error('Error closing connection:', err);
     }
@@ -215,7 +238,9 @@ export default class WebSocketClient {
   private handleMessage(msg: string): void {
     try {
       msg = msg.replace('\u001e', '');
-      const [command, payload] = msg.split(';');
+      const separatorIndex = msg.indexOf(';');
+      const command = separatorIndex === -1 ? msg : msg.substring(0, separatorIndex);
+      const payload = separatorIndex === -1 ? undefined : msg.substring(separatorIndex + 1);
       this.log.debug('Received message: ' + JSON.stringify({ command, payload }));
       this.listeners.forEach((listener) => listener.callback({ command, payload }));
     } catch (err) {
@@ -234,6 +259,10 @@ export default class WebSocketClient {
 
     return new Promise<void>((resolve, reject) => {
       if (!this.connection) {
+        if (this.isConnecting) {
+          this.pendingSends.push(() => this.sendWebSocketCommand(command, payload).then(resolve).catch(reject));
+          return;
+        }
         this.connect((err) => {
           if (err) {
             reject(err);
@@ -271,13 +300,15 @@ export default class WebSocketClient {
 
       this.connection.ping(Buffer.alloc(0));
       let pong = false;
-      this.connection.once('pong', () => {
+      const onPong = () => {
         pong = true;
         resolve();
-      });
+      };
+      this.connection.once('pong', onPong);
 
       setTimeout(() => {
         if (!pong) {
+          this.connection?.removeListener('pong', onPong);
           reject(new Error('Ping timeout'));
         }
       }, this.PING_TIMEOUT);

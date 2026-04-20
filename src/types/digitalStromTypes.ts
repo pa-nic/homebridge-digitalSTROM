@@ -1,8 +1,6 @@
-// JSON:API double data wrapper interfaces
+// JSON:API response wrapper
 export interface ApiResponse<T> {
-  data: {
-    data: T;
-  };
+  data: T;
 }
 
 // Plugin options

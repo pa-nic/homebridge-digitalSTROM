@@ -21,25 +21,25 @@ export class ApartmentScenePlatformAccessory implements AccessoryHandler {
    * @param accessory The Homebridge PlatformAccessory instance.
    */
   constructor(
-  private readonly platform: DigitalStromPlatform,
-  private readonly accessory: PlatformAccessory,
+    private readonly platform: DigitalStromPlatform,
+    private readonly accessory: PlatformAccessory,
   ) {
-  // Set accessory information
-  this.accessory.getService(this.platform.Service.AccessoryInformation)!
-    .setCharacteristic(this.platform.Characteristic.Manufacturer, 'DigitalSTROM')
-    .setCharacteristic(this.platform.Characteristic.Model, 'ApartmentScene')
-    .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.scene.id);
+    // Set accessory information
+    this.accessory.getService(this.platform.Service.AccessoryInformation)!
+      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'DigitalSTROM')
+      .setCharacteristic(this.platform.Characteristic.Model, 'ApartmentScene')
+      .setCharacteristic(this.platform.Characteristic.SerialNumber, this.accessory.context.scene.id);
 
-  this.service = this.accessory.getService(this.platform.Service.Switch)
-    || this.accessory.addService(this.platform.Service.Switch);
+    this.service = this.accessory.getService(this.platform.Service.Switch)
+      || this.accessory.addService(this.platform.Service.Switch);
 
-  this.service.setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
+    this.service.setCharacteristic(this.platform.Characteristic.Name, this.accessory.displayName);
 
-  this.service.getCharacteristic(this.platform.Characteristic.On)
-    .onSet(this.setOn.bind(this))
-    .onGet(this.getOn.bind(this));
+    this.service.getCharacteristic(this.platform.Characteristic.On)
+      .onSet(this.setOn.bind(this))
+      .onGet(this.getOn.bind(this));
 
-  this.platform.log.debug('ApartmentScenePlatformAccessory created for:', this.accessory.displayName);
+    this.platform.log.debug('ApartmentScenePlatformAccessory created for:', this.accessory.displayName);
   }
 
   /**
