@@ -1,6 +1,6 @@
 import type { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
 import type { DigitalStromPlatform } from '../platform.js';
-import type { AccessoryHandler, FunctionBlock, Output, ApartmentStatus, DeviceStatus, OutputStatus } from '../digitalStromTypes.js';
+import type { AccessoryHandler, FunctionBlock, Output, ApartmentStatus, DeviceStatus, OutputStatus } from '../types/digitalStromTypes.js';
 
 
 /**
@@ -139,7 +139,7 @@ export class LightPlatformAccessory implements AccessoryHandler {
     const deviceId = this.accessory.context.device.id;
     const deviceStatus = apartmentStatus?.included?.dsDevices?.find((d: DeviceStatus) => d.id === deviceId);
     
-    // Sometimes output status is not availabe (i.e. during DSS maintenance tasks)
+    // Sometimes output status is not available (i.e. during DSS maintenance tasks)
     // Only trigger update if new status is available
     if (!deviceStatus?.attributes?.functionBlocks?.[0]?.outputs) {
       this.platform.log.debug(`No output status available for ${this.accessory.context.device.attributes?.name}`);

@@ -11,6 +11,7 @@ export interface PluginOptions {
   token: string;
   fingerprint?: string;
   disableCertificateValidation?: boolean;
+  enableApartmentScenes?: boolean;
 }
 
 // Accessory handler interface
@@ -109,7 +110,6 @@ type OutputStatusStatus =
   | string;
 
 type SensorStatusStatus = 'ok' | 'error' | string;
-type ShadesStatusStatus = 'closed' | 'open' | 'moving' | 'mixed' | string;
 type UserDefinedStateStatusStatus = 'active' | 'inactive' | 'undefined' | string;
 
 // ===== Core Entities =====
@@ -157,32 +157,18 @@ export interface Sensor {
   };
 }
 
-// Function Block
-export interface FunctionBlock {
+// Installation
+export interface Installation {
   id: string;
-  type: 'functionBlock' | string;
-  lastChanged?: string;
+  type: 'installation' | string;
   attributes?: {
-    name?: string;
-    technicalName?: string;
-    active?: boolean;
-    outputs?: Output[];
-    buttonInputs?: Button[];
-    sensorInputs?: Sensor[];
-    submodule?: string;
-    deviceAdapter?: string;
-  };
-}
-
-// Submodule
-export interface Submodule {
-  id: string;
-  type: 'submodule' | string;
-  lastChanged?: string;
-  attributes?: {
-    name?: string;
-    technicalName?: string;
-    deviceAdapter?: string;
+    location?: {
+      longitude?: number;
+      latitude?: number;
+    };
+    countryCode?: string;
+    city?: string;
+    timeZone?: string;
   };
 }
 
@@ -199,6 +185,35 @@ export interface DsDevice {
     firmwareVersion?: string;
     functionBlocks?: FunctionBlock[];
     submodules?: string[]; // Array of submodule IDs
+  };
+}
+
+// Submodule
+export interface Submodule {
+  id: string;
+  type: 'submodule' | string;
+  lastChanged?: string;
+  attributes?: {
+    name?: string;
+    technicalName?: string;
+    deviceAdapter?: string;
+  };
+}
+
+// Function Block
+export interface FunctionBlock {
+  id: string;
+  type: 'functionBlock' | string;
+  lastChanged?: string;
+  attributes?: {
+    name?: string;
+    technicalName?: string;
+    active?: boolean;
+    outputs?: Output[];
+    buttonInputs?: Button[];
+    sensorInputs?: Sensor[];
+    submodule?: string;
+    deviceAdapter?: string;
   };
 }
 
@@ -264,15 +279,16 @@ export interface DeviceStatus {
 // Zone Status
 export interface ZoneStatus {
   id: string;
+  type?: 'zoneStatus' | string;
   attributes?: {
     applications?: {
-      shades?: {
-        status?: ShadesStatusStatus;
-        area1?: ShadesStatusStatus;
-        area2?: ShadesStatusStatus;
-        area3?: ShadesStatusStatus;
-        area4?: ShadesStatusStatus;
-      };
+      id: string;
+      status?: string;
+      nonLocalPriority?: string;
+      area1?: string;
+      area2?: string;
+      area3?: string;
+      area4?: string;
     };
   };
 }
@@ -281,10 +297,6 @@ export interface ZoneStatus {
 export interface ClusterStatus {
   id: string;
   attributes?: {
-    weather?: {
-      wind?: boolean;
-      hail?: boolean;
-    };
     operationsLocked?: boolean;
   };
 }
@@ -303,43 +315,40 @@ export interface UserDefinedStateStatus {
 export interface Apartment {
   id: string;
   type: 'apartment' | string;
-  lastChanged?: string;
   attributes?: {
     name?: string;
-    security?: {
-      alarm1?: { name?: string };
-      alarm2?: { name?: string };
-      alarm3?: { name?: string };
-      alarm4?: { name?: string };
-    };
-    installation?: string;
     zones?: string[];
     dsDevices?: string[];
     clusters?: string[];
-    applications2?: {
-      ventilationUnit?: unknown; // Expand as needed
-    };
   };
   included?: {
-    installation?: unknown; // Expand as needed
+    installation?: Installation;
     dsDevices?: DsDevice[];
     submodules?: Submodule[];
     functionBlocks?: FunctionBlock[];
     zones?: Zone[];
-    scenarios?: unknown[]; // Expand as needed
-    userDefinedStates?: unknown[]; // Expand as needed
-    floors?: unknown[]; // Expand as needed
-    clusters?: unknown[]; // Expand as needed
-    applications?: unknown[]; // Deprecated
-    dsServer?: unknown;
-    controllers?: unknown[];
-    apiRevision?: unknown;
-    meterings?: unknown[];
   };
 }
 
 // Apartment Status
 export interface ApartmentStatus {
+  attributes?: {
+    access?: { absent?: boolean };
+    user?: { sleeping?: boolean };
+    security?: {
+      panic?: boolean;
+      fire?: boolean;
+      alarm1?: boolean;
+      alarm2?: boolean;
+      alarm3?: boolean;
+      alarm4?: boolean;
+    };
+    weather?: { 
+      wind?: boolean; 
+      rain?: boolean; 
+      hail?: boolean; 
+    };
+  };
   included?: {
     dsDevices?: DeviceStatus[];
     zones?: ZoneStatus[];

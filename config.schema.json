@@ -38,7 +38,15 @@
             "title": "dSS Certificate SHA256 Fingerprint",
             "type": "string",
             "required": false,
-            "description": "SHA-256 fingerprint in hex format"
+            "description": "SHA-256 fingerprint in hex format",
+            "condition": {
+                "functionBody": "return model.options.disableCertificateValidation === false;"
+              }
+          },
+          "enableApartmentScenes": {
+            "title": "Enable Apartment Scenes",
+            "type": "boolean",
+            "default": false
           }
         }
       }

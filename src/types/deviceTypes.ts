@@ -1,4 +1,4 @@
-import type { FunctionBlock } from '../digitalStromTypes.js';
+import type { FunctionBlock } from './digitalStromTypes.js';
 
 export type DeviceTypeKey = 'light' | 'shade';
 

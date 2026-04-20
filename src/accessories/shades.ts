@@ -1,6 +1,6 @@
 import type { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
 import type { DigitalStromPlatform } from '../platform.js';
-import type { AccessoryHandler, ApartmentStatus, DeviceStatus, OutputStatus } from '../digitalStromTypes.js';
+import type { AccessoryHandler, ApartmentStatus, DeviceStatus, OutputStatus } from '../types/digitalStromTypes.js';
 
 
 /**
@@ -106,7 +106,7 @@ export class ShadePlatformAccessory implements AccessoryHandler {
       } else {
         await this.platform.dsAPI.setDeviceOutputValue(deviceId, deviceId, 'shadePositionOutside', value);
       }
-      this.platform.log.info(`${deviceName} shade Position -> ${value}`);
+      this.platform.log.info(`${deviceName} shade position → ${value}`);
     } catch (error) {
       this.platform.log.error(`Failed to set target position for shade ${deviceName}:`, error);
       throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
@@ -158,7 +158,7 @@ export class ShadePlatformAccessory implements AccessoryHandler {
     const deviceId = this.accessory.context.device.id;
     const deviceStatus = apartmentStatus?.included?.dsDevices?.find((d: DeviceStatus) => d.id === deviceId);
 
-    // Sometimes output status is not availabe (i.e. during DSS maintenance tasks)
+    // Sometimes output status is not available (i.e. during DSS maintenance tasks)
     // Only trigger update if new status is available
     if (!deviceStatus?.attributes?.functionBlocks?.[0]?.outputs) {
       this.platform.log.debug(`No output status available for ${this.accessory.context.device.attributes?.name}`);

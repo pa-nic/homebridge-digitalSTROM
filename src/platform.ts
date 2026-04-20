@@ -1,9 +1,11 @@
 import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import { isIP } from 'net';
-import type { FunctionBlock, Apartment, ApartmentStatus, PluginOptions, AccessoryHandler } from './digitalStromTypes.js';
-import { DEVICE_TYPE_CONFIG } from './accessories/deviceTypes.js';
+import type { FunctionBlock, Apartment, ApartmentStatus, PluginOptions, AccessoryHandler } from './types/digitalStromTypes.js';
+import { DEVICE_TYPE_CONFIG } from './types/deviceTypes.js';
 import { LightPlatformAccessory } from './accessories/lights.js';
 import { ShadePlatformAccessory } from './accessories/shades.js';
+import { ApartmentScenePlatformAccessory } from './accessories/apartmentScenes.js';
+import { APARTMENT_SCENE_DEFINITIONS } from './types/sceneTypes.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 import { digitalStromAPI } from './digitalStromAPI.js';
 import webSocketClient from './webSocketClient.js';
@@ -226,7 +228,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
           this.api.updatePlatformAccessories([existingAccessory]);
 
           // Create the runtime handler that makes the accessory work
-          this.createAccessoryHandler(dssDeviceType, existingAccessory, device);
+          this.createAccessoryHandler(dssDeviceType, existingAccessory);
           
           // It is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, e.g.:
           // remove platform accessories when no longer present
@@ -244,7 +246,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
           accessory.context.device = device;
 
           // Create the runtime handler that makes the accessory work
-          this.createAccessoryHandler(dssDeviceType, accessory, device);
+          this.createAccessoryHandler(dssDeviceType, accessory);
 
           // Link the accessory to your platform
           this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
@@ -257,6 +259,35 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
       this.log.info('Device discovery completed');
     } catch (error) {
       this.log.error('Error discovering devices:', error);
+    }
+
+    // Register apartment scenes if enabled in config
+    if (this.config.options?.enableApartmentScenes) {
+      this.log.info('Registering apartment scenes...');
+
+      for (const scene of APARTMENT_SCENE_DEFINITIONS) {
+        const uuid = this.api.hap.uuid.generate(`apartmentScene-${scene.id}`);
+        const existingAccessory = this.accessories.get(uuid);
+
+        if (existingAccessory) {
+          this.log.info('Restoring existing scene from cache:', existingAccessory.displayName);
+          existingAccessory.context.scene = { id: scene.id, attributes: { name: scene.label } };
+          this.api.updatePlatformAccessories([existingAccessory]);
+          this.createAccessoryHandler('scene', existingAccessory);
+        } else {
+          this.log.info('Adding new scene accessory:', scene.label);
+          const accessory = new this.api.platformAccessory(scene.label, uuid);
+          accessory.context.scene = { id: scene.id, attributes: { name: scene.label } };
+          this.createAccessoryHandler('scene', accessory);
+          this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        }
+
+        this.discoveredCacheUUIDs.push(uuid);
+      }
+
+      this.log.info('Apartment scenes registered');
+    } else {
+      this.log.info('Apartment scenes disabled (enableApartmentScenes not set)');
     }
 
     // Remove accessories from cache that are no longer present
@@ -296,20 +327,22 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
    * Create the runtime handler for the accessory based on device type.
    * @param dssDeviceType The device type string.
    * @param accessory The platform accessory.
-   * @param device The function block device.
    */
-  private createAccessoryHandler(dssDeviceType: string, accessory: PlatformAccessory, device: FunctionBlock): void {
+  private createAccessoryHandler(dssType: string, accessory: PlatformAccessory): void {
     let handler: AccessoryHandler | undefined;
-    switch (dssDeviceType) {
+    switch (dssType) {
     case 'light':
       handler = new LightPlatformAccessory(this, accessory);
       break;
     case 'shade':
       handler = new ShadePlatformAccessory(this, accessory);
       break;
+    case 'scene':
+      handler = new ApartmentScenePlatformAccessory(this, accessory);
+      break;
     default:
       // We should never get here.
-      this.log.error(`Unknown device of type ${device.attributes?.technicalName} detected: ${device.attributes?.name}.`);
+      this.log.error(`Unable to create accessory handler for ${dssType}.`);
       break;
     }
     if (handler) {

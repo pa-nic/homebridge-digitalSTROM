@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import type { ApiResponse, InvokeScenarioBody } from './digitalStromTypes.js';
+import type { ApiResponse, InvokeScenarioBody } from './types/digitalStromTypes.js';
 import https from 'https';
 import crypto from 'crypto';
 import { TLSSocket } from 'tls';
@@ -69,7 +69,6 @@ export class digitalStromAPI {
     this.axios.interceptors.response.use(
       (response) => response,
       (error) => {
-        this.log.error('API request failed:', error.message);
         throw error;
       },
     );
@@ -84,7 +83,7 @@ export class digitalStromAPI {
     try {
       if (this.disableCertValidation !== true && this.fingerprint && this.fingerprint.trim() !== '') {
         this.log.info('Validating server certificate...');
-        const pemCert = await this.validateCertificate(this.dssIP, this.fingerprint);
+        const pemCert = await this.validateCertificate(this.fingerprint);
         
         if (pemCert) {
           // Update axios instance with validated certificate
@@ -182,7 +181,7 @@ export class digitalStromAPI {
   /**
    * Validates certificate against stored fingerprint.
    */
-  private async validateCertificate(dssIP: string, fingerprint: string): Promise<string | null> {
+  private async validateCertificate(fingerprint: string): Promise<string | null> {
     // Accept SHA256 fingerprint in hex, colon, dash, or space separated formats
     const cleanedFingerprint = fingerprint ? fingerprint.replace(/[\s:-]/g, '') : '';
     const sha256Regex = /^[A-Fa-f0-9]{64}$/;
@@ -199,7 +198,6 @@ export class digitalStromAPI {
         return null;
       }
 
-      this.log.info('Certificate validation successful');
       return pemCert;
     } catch (error) {
       this.log.error('Error validating certificate:', error);
@@ -320,6 +318,23 @@ export class digitalStromAPI {
       return (response.data as { data: T }).data;
     } catch (error: unknown) {
       this.log.error('Failed to get apartment status:', (error as Error).message ?? error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Meterings values.
+   * @returns Meterings values as a JSON object of type T.
+   */
+  async getMeteringsValues<T = unknown>(): Promise<T> {
+    this.log.debug('Getting meterings values');
+    try {
+      const response = await this.axios.get<ApiResponse<T>>('/api/v1/apartment/meterings/values', {
+        params: { includeAll: 'true' },
+      });
+      return (response.data as { data: T }).data;
+    } catch (error: unknown) {
+      this.log.error('Failed to get meterings values:', (error as Error).message ?? error);
       throw error;
     }
   }
