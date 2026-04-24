@@ -225,11 +225,12 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
           // Update the accessory context with the latest device info
           existingAccessory.context.device = device;
 
-          // Persist the updated context to disk
-          this.api.updatePlatformAccessories([existingAccessory]);
-
           // Create the runtime handler that makes the accessory work
+          // (must run before updatePlatformAccessories so any service cleanup is persisted)
           this.createAccessoryHandler(dssDeviceType, existingAccessory);
+
+          // Persist the updated context and cleaned-up service state to disk
+          this.api.updatePlatformAccessories([existingAccessory]);
           
           // It is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, e.g.:
           // remove platform accessories when no longer present

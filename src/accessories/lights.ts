@@ -56,6 +56,8 @@ export class LightPlatformAccessory implements AccessoryHandler {
       this.service.getCharacteristic(this.platform.Characteristic.Brightness)
         .onSet(this.setBrightness.bind(this))
         .onGet(this.getBrightness.bind(this));
+    } else if (this.service.testCharacteristic(this.platform.Characteristic.Brightness)) {
+      this.service.removeCharacteristic(this.service.getCharacteristic(this.platform.Characteristic.Brightness));
     }
 
     this.platform.log.debug('LightPlatformAccessory created for:', this.accessory.displayName);
