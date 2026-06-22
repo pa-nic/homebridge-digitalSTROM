@@ -289,7 +289,7 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
 
       this.log.info('Apartment scenes registered');
     } else {
-      this.log.info('Apartment scenes disabled (enableApartmentScenes not set)');
+      this.log.info('Apartment scenes ignored');
     }
 
     // Remove accessories from cache that are no longer present
