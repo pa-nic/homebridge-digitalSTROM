@@ -53,20 +53,13 @@ export class ApartmentScenePlatformAccessory implements AccessoryHandler {
     const sceneDef = APARTMENT_SCENE_DEFINITIONS.find((s) => s.id === sceneId);
 
     try {
-      if (sceneDef?.type === 'button') {
-        // Button: fire on press, reset tile back to off immediately
-        if (value as boolean) {
-          await this.platform.dsAPI.invokeScenario({ context: 'applicationApartment', actionId: sceneId });
-          this.platform.log.info(`ApartmentScene → ${sceneName} → triggered`);
-          setTimeout(() => this.service.updateCharacteristic(this.platform.Characteristic.On, false), 300);
-        }
-      } else {
+      if (sceneDef?.resetId) {
         // Switch: on → id, off → id + 'End'
         if (value as boolean) {
           await this.platform.dsAPI.invokeScenario({ context: 'applicationApartment', actionId: sceneId });
           this.platform.log.info(`ApartmentScene → ${sceneName} → On`);
         } else {
-          await this.platform.dsAPI.invokeScenario({ context: 'applicationApartment', actionId: `${sceneId}End` });
+          await this.platform.dsAPI.invokeScenario({ context: 'applicationApartment', actionId: sceneDef.resetId });
           this.platform.log.info(`ApartmentScene → ${sceneName} → Off`);
         }
       }
@@ -89,16 +82,12 @@ export class ApartmentScenePlatformAccessory implements AccessoryHandler {
    * Called by the platform when apartment status changes.
    * @param apartmentStatus The latest apartment status object.
    */
-  public updateState(apartmentStatus: ApartmentStatus): void {
+  public async updateState(apartmentStatus: ApartmentStatus): Promise<void> {
     const sceneId = this.accessory.context.scene.id as string;
     const sceneDef = APARTMENT_SCENE_DEFINITIONS.find((s) => s.id === sceneId);
 
     if (!sceneDef) {
       return;
-    }
-
-    if (sceneDef.type === 'button') {
-      return; // buttons have no readable state
     }
 
     const newValue = sceneDef.getValue(apartmentStatus) ?? false;

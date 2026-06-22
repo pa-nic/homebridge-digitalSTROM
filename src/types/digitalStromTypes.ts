@@ -14,7 +14,7 @@ export interface PluginOptions {
 
 // Accessory handler interface
 export interface AccessoryHandler {
-  updateState(apartmentStatus: ApartmentStatus): void;
+  updateState(apartmentStatus: ApartmentStatus): Promise<void>;
 }
 
 // ===== Enums and Type Aliases =====

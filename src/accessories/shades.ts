@@ -97,16 +97,22 @@ export class ShadePlatformAccessory implements AccessoryHandler {
   async setTargetPosition(value: CharacteristicValue) {
     const deviceId: string = this.accessory.context.device.id;
     const deviceName = this.accessory.context.device.attributes?.name;
-    
+    const targetPosition = Number(value);
+
     try {
-      if (value === 100) {
+      if (targetPosition === 100) {
         await this.platform.dsAPI.invokeScenario({ context: 'applicationDevice', actionId: 'on', dsDevice: deviceId });
-      } else if (value === 0) {
+      } else if (targetPosition === 0) {
         await this.platform.dsAPI.invokeScenario({ context: 'applicationDevice', actionId: 'off', dsDevice: deviceId });
+      } else if (this.currentPosition !== targetPosition) {
+        // Set intermediate position if not already there by directly setting the output value,
+        // as the on/off scenarios only support fully open/close.
+        await this.platform.dsAPI.setDeviceOutputValue(deviceId, deviceId, 'shadePositionOutside', targetPosition);
       } else {
-        await this.platform.dsAPI.setDeviceOutputValue(deviceId, deviceId, 'shadePositionOutside', value);
+        this.platform.log.debug(`${deviceName} shade already at target position ${targetPosition}, no action taken`);
       }
-      this.platform.log.info(`${deviceName} shade position → ${value}`);
+      this.targetPosition = targetPosition;
+      this.platform.log.info(`${deviceName} shade position → ${targetPosition}`);
     } catch (error) {
       this.platform.log.error(`Failed to set target position for shade ${deviceName}:`, error);
       throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
@@ -152,7 +158,7 @@ export class ShadePlatformAccessory implements AccessoryHandler {
    * Called by the platform when apartment status changes.
    * @param apartmentStatus The latest apartment status object.
    */
-  public updateState(apartmentStatus: ApartmentStatus): void {
+  public async updateState(apartmentStatus: ApartmentStatus): Promise<void> {
     this.platform.log.debug(`Update status of ${this.accessory.context.device.attributes.name}`);
 
     const deviceId = this.accessory.context.device.id;
@@ -171,15 +177,32 @@ export class ShadePlatformAccessory implements AccessoryHandler {
 
     if (shadePositionOutput) {
       const rawStatus = shadePositionOutput.status ?? 'ok';
-      this.positionState = rawStatus === 'moving' ? 'moving' : 'ok';
+      const newPositionState = rawStatus === 'moving' ? 'moving' : 'ok';
+      const newCurrentPosition = newPositionState === 'moving'
+        ? Math.round(shadePositionOutput.initialValue ?? 0)
+        : Math.round(shadePositionOutput.value ?? 0);
+      const newTargetPosition = Math.round(shadePositionOutput.targetValue ?? 0);
 
-      if (this.positionState === 'moving') {
-        this.currentPosition = Math.round(shadePositionOutput.initialValue ?? 0);
-      } else {
-        this.currentPosition = Math.round(shadePositionOutput.value ?? 0);
-      }   
+      const wasMoving = this.positionState === 'moving';
+      const hasReachedIntermediateTarget = wasMoving
+        && newPositionState === 'ok'
+        && newTargetPosition > 0
+        && newTargetPosition < 100
+        && newCurrentPosition === newTargetPosition;
 
-      this.targetPosition = Math.round(shadePositionOutput.targetValue ?? 0);
+      this.positionState = newPositionState;
+      this.currentPosition = newCurrentPosition;
+      this.targetPosition = newTargetPosition;
+
+      // If we transitioned from moving to ok and landed exactly on an intermediate target,
+      // send stop to avoid an empty-click fallback from raw output writes.
+      if (hasReachedIntermediateTarget) {
+        try {
+          await this.platform.dsAPI.invokeScenario({ context: 'applicationDevice', actionId: 'stop', dsDevice: deviceId });
+        } catch (error) {
+          this.platform.log.warn(`Failed to send stop command after reaching intermediate target ${newTargetPosition} for shade ${deviceId}:`, error);
+        }
+      }
 
       // Update Characteristics.CurrentPosition
       this.service.updateCharacteristic(this.platform.Characteristic.CurrentPosition, this.currentPosition);
@@ -197,7 +220,7 @@ export class ShadePlatformAccessory implements AccessoryHandler {
             this.platform.Characteristic.PositionState.DECREASING);
         }
       } else {
-        this.service.updateCharacteristic(this.platform.Characteristic.PositionState,this.platform.Characteristic.PositionState.STOPPED);
+        this.service.updateCharacteristic(this.platform.Characteristic.PositionState, this.platform.Characteristic.PositionState.STOPPED);
       }
     }
   }

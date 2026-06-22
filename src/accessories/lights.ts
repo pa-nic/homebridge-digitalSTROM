@@ -135,7 +135,7 @@ export class LightPlatformAccessory implements AccessoryHandler {
    * Called by the platform when apartment status changes.
    * @param apartmentStatus The latest apartment status object.
    */
-  public updateState(apartmentStatus: ApartmentStatus): void {
+  public async updateState(apartmentStatus: ApartmentStatus): Promise<void> {
     this.platform.log.debug(`Updating state for ${this.accessory.context.device.attributes?.name}`);
 
     const deviceId = this.accessory.context.device.id;

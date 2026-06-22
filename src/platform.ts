@@ -374,11 +374,26 @@ export class DigitalStromPlatform implements DynamicPlatformPlugin {
     this.log.debug('Update accessories');
     try {
       const apartmentStatus = await this.dsAPI.getApartmentStatus<ApartmentStatus>();
+      const updatePromises: Array<Promise<{ accessoryName: string; success: true }>> = [];
 
       for (const accessory of this.accessories.values()) {
         const handler = this.handlerMap.get(accessory);
         if (handler) {
-          handler.updateState(apartmentStatus);
+          const accessoryName = accessory.displayName ?? accessory.context.device?.attributes?.name ?? String(accessory.UUID);
+          updatePromises.push(
+            handler.updateState(apartmentStatus).then(
+              () => ({ accessoryName, success: true }),
+              (error) => Promise.reject({ accessoryName, error }),
+            ),
+          );
+        }
+      }
+
+      const results = await Promise.allSettled(updatePromises);
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          const { accessoryName, error } = result.reason as { accessoryName: string; error: unknown };
+          this.log.error(`Accessory update failed for ${accessoryName}:`, error);
         }
       }
     } catch (error) {
