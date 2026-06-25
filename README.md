@@ -36,14 +36,16 @@ The following default digitalSTROM apartment scenes are supported (as HomeKit sw
 | --- | --- | --- |
 | Absent | absent | present |
 | Sleeping | sleeping | wakeup |
-| Panic | panic | panicEnd |
-| Fire |fire | fireEnd |
-| Alarm 2 | alarm2 | alarm2End |
-| Alarm 3 | alarm3 | alarm3End |
+| Panic | panic | panicEnd |
+| Fire |fire | fireEnd |
+| Alarm 2 | alarm2 | alarm2End |
+| Alarm 3 | alarm3 | alarm3End |
 | Alarm 4 | alarm4 | alarm4End |
 | Wind | wind | windEnd |
-| Rain | rain | rainEnd |
+| Rain | rain | rainEnd |
 | Hail | hail | hailEnd |
+
+Enable apartment scenes usage in the plugin config.
 
 # Install instructions
 
