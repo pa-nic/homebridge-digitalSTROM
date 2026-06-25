@@ -28,7 +28,7 @@ You are currently able to directly control the following functions/devices:
 
 Limitations: There is currently no way to automatically assign devices to floors, rooms, groups in HomeKit. So this has to be done manually within HomeKit.
 
-## Appartment scenes
+## Apartment scenes
 
 The following default digitalSTROM apartment scenes are supported (as HomeKit switches):
 
