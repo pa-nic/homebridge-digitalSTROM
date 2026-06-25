@@ -9,7 +9,7 @@
 
 [![verified-by-homebridge](https://img.shields.io/badge/homebridge-verified-blueviolet?color=%23491F59&style=flat)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 
-This is a (very) basic [Homebridge](https://homebridge.io) platform plugin for the [digitalSTROM](https://www.digitalstrom.com) smart home system.
+This is a [Homebridge](https://homebridge.io) platform plugin for the [digitalSTROM](https://www.digitalstrom.com) smart home system.
 
 The idea is **not** to expose all the zones, scenes etc. of the digitalSTROM setup but rather be able to control all the devices directly and do most/all of the automation stuff within HomeKit. 
 
@@ -27,6 +27,23 @@ You are currently able to directly control the following functions/devices:
 | GR-* | Shades | gray | Shade position (outside) |
 
 Limitations: There is currently no way to automatically assign devices to floors, rooms, groups in HomeKit. So this has to be done manually within HomeKit.
+
+## Appartment scenes
+
+The following default digitalSTROM apartment scenes are supported (as HomeKit switches):
+
+| Name | On state | OFF state |
+| --- | --- | --- |
+| Absent | absent | present |
+| Sleeping | sleeping | wakeup |
+| Panic | panic | panicEnd |
+| Fire |fire | fireEnd |
+| Alarm 2 | alarm2 | alarm2End |
+| Alarm 3 | alarm3 | alarm3End |
+| Alarm 4 | alarm4 | alarm4End |
+| Wind | wind | windEnd |
+| Rain | rain | rainEnd |
+| Hail | hail | hailEnd |
 
 # Install instructions
 
